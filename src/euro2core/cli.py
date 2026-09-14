@@ -23,7 +23,8 @@ from euro2core.scheduler.jobs import (
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per request is noise
+for noisy in ("httpx", "apscheduler"):  # one line per request / per job add is noise
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
 app = typer.Typer(help="euro2-core: autonomous data core for 2 euro coins.", no_args_is_help=True)
 db_app = typer.Typer(help="Database migrations.", no_args_is_help=True)
