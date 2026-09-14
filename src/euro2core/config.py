@@ -18,10 +18,6 @@ class Settings(BaseSettings):
     user_agent: str = "euro2-core/0.1"
 
     @property
-    def cache_dir(self) -> Path:
-        return self.data_dir / "cache"
-
-    @property
     def images_dir(self) -> Path:
         return self.data_dir / "images"
 

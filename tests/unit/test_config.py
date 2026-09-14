@@ -15,5 +15,4 @@ def test_env_overrides(monkeypatch):
     monkeypatch.setenv("DATA_DIR", "C:/tmp/euro2")
     s = Settings(_env_file=None)
     assert s.numista_api_key == "abc"
-    assert s.cache_dir == Path("C:/tmp/euro2") / "cache"
     assert s.images_dir == Path("C:/tmp/euro2") / "images"

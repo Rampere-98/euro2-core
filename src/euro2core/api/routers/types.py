@@ -5,49 +5,18 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.api.deps import LangDep, SessionDep
-from euro2core.api.queries import facts_for, images_for_types, languages_for, translations_for
+from euro2core.api.queries import (
+    facts_for,
+    images_for_types,
+    languages_for,
+    summaries_for,
+    translations_for,
+)
 from euro2core.api.schemas import IssueSummary, Page, TypeDetail, TypeSummary
 from euro2core.domain.enums import CoinKind
 from euro2core.domain.models import CoinIssue, CoinType
 
 router = APIRouter(prefix="/types", tags=["catalog"])
-
-
-async def summaries_for(
-    session: AsyncSession, types: list[CoinType], lang: str
-) -> list[TypeSummary]:
-    ids = [t.id for t in types]
-    texts = await translations_for(session, "coin_type", ids, lang)
-    images = await images_for_types(session, ids)
-    counts = (
-        dict(
-            (
-                await session.execute(
-                    select(CoinIssue.type_id, func.count())
-                    .where(CoinIssue.type_id.in_(ids))
-                    .group_by(CoinIssue.type_id)
-                )
-            ).all()
-        )
-        if ids
-        else {}
-    )
-    return [
-        TypeSummary(
-            id=t.id,
-            kind=t.kind.value,
-            country_code=t.country_code,
-            year=t.year,
-            title=texts.get(t.id, {}).get("title"),
-            mintage_total=t.mintage_total,
-            joint_issue_group=t.joint_issue_group,
-            ecb_ref=t.ecb_ref,
-            numista_type_id=t.numista_type_id,
-            issue_count=counts.get(t.id, 0),
-            image=next(iter(images.get(t.id, [])), None),
-        )
-        for t in types
-    ]
 
 
 @router.get("", response_model=Page[TypeSummary])

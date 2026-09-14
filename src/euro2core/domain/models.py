@@ -141,6 +141,7 @@ class CoinIssue(Base):
             "type_id", "year", "mint_mark", "finish", "packaging", name="uq_coin_issue_variant"
         ),
         CheckConstraint("year BETWEEN 1999 AND 2100", name="ck_coin_issue_year"),
+        Index("ix_coin_issue_type", "type_id"),
     )
 
 
@@ -182,6 +183,7 @@ class MarketObservation(Base):
         ),
         CheckConstraint("sheldon IS NULL OR sheldon BETWEEN 1 AND 70", name="ck_sheldon_range"),
         Index("ix_market_observation_issue_time", "issue_id", "observed_at"),
+        Index("ix_market_observation_auction_queue", "observation_kind", "ends_at"),
     )
 
 
@@ -248,6 +250,7 @@ class CoinImage(Base):
         CheckConstraint(
             "(type_id IS NOT NULL) OR (issue_id IS NOT NULL)", name="ck_coin_image_has_target"
         ),
+        Index("ix_coin_image_type", "type_id"),
     )
 
 

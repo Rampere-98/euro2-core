@@ -1,6 +1,3 @@
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-
 from pgvector.asyncpg import register_vector
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
@@ -44,16 +41,3 @@ def get_engine() -> AsyncEngine:
         _engine = create_engine()
         _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine
-
-
-@asynccontextmanager
-async def session_scope() -> AsyncIterator[AsyncSession]:
-    get_engine()
-    assert _session_factory is not None
-    async with _session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise

@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.api.deps import LangDep, SessionDep
-from euro2core.api.routers.types import summaries_for
+from euro2core.api.queries import summaries_for
 from euro2core.api.schemas import Page, TypeSummary
 from euro2core.domain.models import CoinType, TextTranslation
 
