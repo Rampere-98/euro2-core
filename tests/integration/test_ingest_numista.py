@@ -158,6 +158,30 @@ async def test_documented_error_becomes_error_type_pointing_at_its_base(seeded):
     assert result.base_type_id == base_type.id
 
 
+async def test_implausible_issue_year_falls_back_to_type_year_or_is_skipped(seeded):
+    session = seeded
+    t = parse_type(load("type_2169.json"))  # single-year type (2006)
+    bad = parse_issue(
+        {"id": 999001, "year": 0, "gregorian_year": 0, "mint_letter": "INCM", "mintage": 21000}
+    )
+    result = await ingest_numista_type(session, t, [bad], translations=[], fetcher=None)
+    await session.commit()
+    assert result.issues_created == 1
+    issue = (
+        await session.scalars(select(CoinIssue).where(CoinIssue.numista_issue_id == 999001))
+    ).one()
+    assert issue.year == 2006
+
+    multi_year = parse_type(
+        {**load("type_2169.json"), "id": 777, "min_year": 2008, "max_year": 2026}
+    )
+    bad2 = parse_issue({"id": 999002, "year": 0, "mint_letter": "A"})
+    result = await ingest_numista_type(session, multi_year, [bad2], translations=[], fetcher=None)
+    await session.commit()
+    assert result.issues_created == 0
+    assert result.issues_skipped == 1
+
+
 async def test_re_ingest_is_idempotent(seeded):
     session = seeded
     t = parse_type(load("type_2169.json"))

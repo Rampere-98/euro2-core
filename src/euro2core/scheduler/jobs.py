@@ -140,6 +140,7 @@ async def run_numista_catalog(
         "types_linked": 0,
         "types_skipped": 0,
         "issues_created": 0,
+        "issues_skipped": 0,
     }
 
     async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
@@ -167,6 +168,7 @@ async def run_numista_catalog(
                 stats["types_linked"] += int(result.linked_to_ecb)
                 stats["types_skipped"] += int(result.skipped_reason is not None)
                 stats["issues_created"] += result.issues_created
+                stats["issues_skipped"] += result.issues_skipped
             done.append(issuer)
             cursor["issuers_done"] = list(done)
             stats["issuers_done"].append(issuer)

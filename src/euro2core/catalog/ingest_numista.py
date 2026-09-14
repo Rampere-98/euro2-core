@@ -1,7 +1,7 @@
 import logging
 import uuid
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,7 @@ class NumistaIngestResult:
     linked_to_ecb: bool = False
     skipped_reason: str | None = None
     issues_created: int = 0
+    issues_skipped: int = 0
     base_type_id: uuid.UUID | None = None
 
 
@@ -85,6 +86,18 @@ async def ingest_numista_type(
         )
 
     for issue in issues:
+        if not 1999 <= issue.year <= 2100:
+            if ntype.year != ntype.max_year:
+                log.warning(
+                    "skipping Numista issue %s of type %s: implausible year %s",
+                    issue.id,
+                    ntype.id,
+                    issue.year,
+                )
+                result.issues_skipped += 1
+                continue
+            # Source data error on a single-year type: the type's year is the only sane value
+            issue = replace(issue, year=ntype.year)
         created = await _upsert_issue(session, coin_type, issue, source, ntype.url)
         result.issues_created += int(created)
 
