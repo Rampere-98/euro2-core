@@ -8,7 +8,7 @@ import typer
 
 from euro2core.config import get_settings
 from euro2core.db import get_engine
-from euro2core.scheduler.jobs import run_ecb_discover
+from euro2core.scheduler.jobs import run_ecb_discover, run_numista_catalog
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -58,8 +58,23 @@ def sync_ecb(
 
 
 @sync_app.command("numista")
-def sync_numista() -> None:
-    raise typer.Exit(code=_not_implemented("sync numista"))
+def sync_numista(
+    issuer: Annotated[
+        list[str] | None, typer.Option(help="Only these Numista issuer codes (default: euro area)")
+    ] = None,
+) -> None:
+    """Import variants (mint marks, finishes, mintages), translations and photos from Numista."""
+    settings = get_settings()
+    run = asyncio.run(
+        run_numista_catalog(
+            get_engine(),
+            data_dir=settings.data_dir,
+            api_key=settings.numista_api_key,
+            user_agent=settings.user_agent,
+            issuers=issuer or None,
+        )
+    )
+    _report_run(run)
 
 
 @sync_app.command("ebay")
