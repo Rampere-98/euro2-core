@@ -15,6 +15,8 @@ from euro2core.catalog.seed import ensure_reference_data
 from euro2core.domain.enums import SyncStatus
 from euro2core.domain.models import SyncRun
 from euro2core.images.fetcher import ImageFetcher
+from euro2core.pricing.recompute import issues_with_observations, recompute_issue_prices, summarize
+from euro2core.rarity.recompute import recompute_all_rarity
 from euro2core.sources.ecb.source import ECB_SOURCE_CODE, EcbSource
 from euro2core.sources.http_cache import HttpCache
 from euro2core.sources.numista.client import NumistaClient
@@ -115,6 +117,36 @@ async def run_ecb_discover(
             )
 
     return await _run_job(engine, "ecb_discover", body, stats)
+
+
+async def run_recompute_prices(engine: AsyncEngine) -> SyncRun:
+    stats: dict[str, Any] = {"issues_with_observations": 0, "issues_estimated": 0, "by_basis": {}}
+
+    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+        async with sessions() as session:
+            issue_ids = await issues_with_observations(session)
+        stats["issues_with_observations"] = len(issue_ids)
+        for issue_id in issue_ids:
+            async with sessions() as session:
+                estimates = await recompute_issue_prices(session, issue_id)
+                await session.commit()
+            if estimates:
+                stats["issues_estimated"] += 1
+                for basis, n in summarize(estimates).items():
+                    stats["by_basis"][basis] = stats["by_basis"].get(basis, 0) + n
+
+    return await _run_job(engine, "recompute_prices", body, stats)
+
+
+async def run_recompute_rarity(engine: AsyncEngine) -> SyncRun:
+    stats: dict[str, Any] = {}
+
+    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+        async with sessions() as session:
+            stats.update(await recompute_all_rarity(session))
+            await session.commit()
+
+    return await _run_job(engine, "recompute_rarity", body, stats)
 
 
 async def run_numista_catalog(

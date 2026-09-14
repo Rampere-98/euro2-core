@@ -8,7 +8,12 @@ import typer
 
 from euro2core.config import get_settings
 from euro2core.db import get_engine
-from euro2core.scheduler.jobs import run_ecb_discover, run_numista_catalog
+from euro2core.scheduler.jobs import (
+    run_ecb_discover,
+    run_numista_catalog,
+    run_recompute_prices,
+    run_recompute_rarity,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -84,12 +89,14 @@ def sync_ebay() -> None:
 
 @recompute_app.command("prices")
 def recompute_prices() -> None:
-    raise typer.Exit(code=_not_implemented("recompute prices"))
+    """Rebuild price estimates from market observations (realized sales first)."""
+    _report_run(asyncio.run(run_recompute_prices(get_engine())))
 
 
 @recompute_app.command("rarity")
 def recompute_rarity() -> None:
-    raise typer.Exit(code=_not_implemented("recompute rarity"))
+    """Rebuild the 0-100 rarity index for every issue with a known mintage."""
+    _report_run(asyncio.run(run_recompute_rarity(get_engine())))
 
 
 @app.command("serve")

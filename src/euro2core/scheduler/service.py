@@ -38,10 +38,20 @@ async def _numista(engine: AsyncEngine, settings: Settings) -> SyncRun:
     )
 
 
+async def _prices(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    return await jobs.run_recompute_prices(engine)
+
+
+async def _rarity(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    return await jobs.run_recompute_rarity(engine)
+
+
 # (job id, interval, runner)
 JOB_SPECS: tuple[tuple[str, timedelta, JobFactory], ...] = (
     ("ecb_discover", timedelta(hours=24), _ecb),
     ("numista_catalog", timedelta(days=7), _numista),
+    ("recompute_prices", timedelta(hours=24), _prices),
+    ("recompute_rarity", timedelta(hours=24), _rarity),
 )
 
 
