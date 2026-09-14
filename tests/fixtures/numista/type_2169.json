@@ -1,0 +1,152 @@
+{
+ "id": 2169,
+ "url": "https://en.numista.com/2169",
+ "title": "2 Euros (Bundesländer - \"Schleswig-Holstein\")",
+ "object_type": {
+  "id": 2,
+  "name": "Circulating commemorative coins"
+ },
+ "issuer": {
+  "code": "allemagne",
+  "name": "Germany, Federal Republic of"
+ },
+ "min_year": 2006,
+ "max_year": 2006,
+ "ruler": [
+  {
+   "id": 2860,
+   "name": "Federal Republic",
+   "wikidata_id": "Q183"
+  }
+ ],
+ "value": {
+  "text": "2 Euros",
+  "numeric_value": 2,
+  "currency": {
+   "id": 9007,
+   "name": "Euro",
+   "full_name": "Euro (2002-date)"
+  }
+ },
+ "demonetization": {
+  "is_demonetized": false
+ },
+ "size": 25.75,
+ "thickness": 2.2,
+ "shape": "Round",
+ "composition": {
+  "text": "Bimetallic: nickel brass clad nickel centre in copper-nickel ring"
+ },
+ "technique": {
+  "text": "Milled"
+ },
+ "obverse": {
+  "engravers": [
+   "Heinz Hoyer"
+  ],
+  "description": "The Holstentor, the gate symbolising of the town of Lübeck, is shown in the centre of the coin and below it the word ‘Schleswig-Holstein’, the first of Germany’s 16 federal states to be commemorated in a euro coin. The engraver’s initials ‘HH’ appear to the right of the image and the mintmark ‘A’, ‘D’, ‘F’, ‘G’ or ‘J’, depending on the mint, to the left. The year of mintage, 2006, the 12 stars of the European Union and the words ‘Bundesrepublik Deutschland’ are shown in the outer ring.",
+  "lettering": "2006\r\nG   HH\r\nSCHLESWIG-HOLSTEIN\r\nBUNDESREPUBLIK DEUTSCHLAND",
+  "lettering_scripts": [
+   {
+    "name": "Latin"
+   }
+  ],
+  "picture": "https://en.numista.com/catalogue/photos/allemagne/6964d34d1e98e5.11433162-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d34d1e98e5.11433162-180.jpg",
+  "picture_copyright": "brismike",
+  "picture_license_name": "CC BY-NC",
+  "picture_license_url": "https://creativecommons.org/licenses/by-nc/4.0/deed.en"
+ },
+ "reverse": {
+  "engravers": [
+   "Luc Luycx"
+  ],
+  "description": "A map, next to the face value, shows the European continent without borders.",
+  "lettering": "2 EURO LL",
+  "lettering_scripts": [
+   {
+    "name": "Latin"
+   }
+  ],
+  "picture": "https://en.numista.com/catalogue/photos/allemagne/6964d34e2987d4.70648715-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d34e2987d4.70648715-180.jpg",
+  "picture_copyright": "brismike",
+  "picture_license_name": "CC BY-NC",
+  "picture_license_url": "https://creativecommons.org/licenses/by-nc/4.0/deed.en"
+ },
+ "series": "German states",
+ "commemorated_topic": "State of Schleswig-Holstein",
+ "tags": [
+  "Castle or fortification",
+  "Map"
+ ],
+ "references": [
+  {
+   "catalogue": {
+    "id": 3,
+    "code": "KM"
+   },
+   "number": "253"
+  },
+  {
+   "catalogue": {
+    "id": 80,
+    "code": "J"
+   },
+   "number": "519"
+  },
+  {
+   "catalogue": {
+    "id": 24,
+    "code": "Schön"
+   },
+   "number": "242"
+  },
+  {
+   "catalogue": {
+    "id": 81,
+    "code": "AKS"
+   },
+   "number": "L1"
+  }
+ ],
+ "weight": 8.5,
+ "orientation": "medal",
+ "edge": {
+  "description": "Reeded with inscription",
+  "lettering": "EINIGKEIT UND RECHT UND FREIHEIT",
+  "lettering_scripts": [
+   {
+    "name": "Latin"
+   }
+  ],
+  "lettering_translation": "Unity and justice and freedom",
+  "picture": "https://en.numista.com/catalogue/photos/allemagne/2031-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2031-180.jpg",
+  "picture_copyright": "Cyrillius"
+ },
+ "mints": [
+  {
+   "id": 5,
+   "name": "Berlin"
+  },
+  {
+   "id": 1,
+   "name": "Munich"
+  },
+  {
+   "id": 2,
+   "name": "State Mint of Stuttgart / State Mints of Baden-Württemberg"
+  },
+  {
+   "id": 3,
+   "name": "State Mint of Karlsruhe / State Mints of Baden-Württemberg"
+  },
+  {
+   "id": 4,
+   "name": "Hamburg Mint"
+  }
+ ],
+ "category": "coin",
+ "type": "Circulating commemorative coins"
+}

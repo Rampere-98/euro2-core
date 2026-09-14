@@ -1,0 +1,115 @@
+{
+ "id": 5082,
+ "url": "https://en.numista.com/5082",
+ "title": "2 Euros - Benedict XVI (Swiss Guard)",
+ "object_type": {
+  "id": 3,
+  "name": "Non-circulating coins"
+ },
+ "issuer": {
+  "code": "vatican",
+  "name": "Vatican City"
+ },
+ "min_year": 2006,
+ "max_year": 2006,
+ "ruler": [
+  {
+   "id": 1524,
+   "name": "Benedict XVI",
+   "wikidata_id": "Q2494"
+  }
+ ],
+ "value": {
+  "text": "2 Euros",
+  "numeric_value": 2,
+  "currency": {
+   "id": 9016,
+   "name": "Euro",
+   "full_name": "Euro (2002-date)"
+  }
+ },
+ "demonetization": {
+  "is_demonetized": false
+ },
+ "size": 25.75,
+ "thickness": 2.2,
+ "shape": "Round",
+ "composition": {
+  "text": "Bimetallic: nickel brass clad nickel centre in copper-nickel ring"
+ },
+ "technique": {
+  "text": "Milled"
+ },
+ "obverse": {
+  "engravers": [
+   "Orietta Rossi"
+  ],
+  "description": "The coin features a Swiss guard taking an oath of loyalty to the Pope. The inscription ‘GUARDIA SVIZZERA PONTIFICIA’ forms a semi-circle around the guard, while under the flag appears the name of the issuing state, ‘CITTÀ DEL VATICANO’. ‘1506’ appears on the left side, above the signature of the engraver ‘O. ROSSI’ along the flagpole. ‘2006’ appears on the right side, above the mint mark ‘R’. The 12 stars of the European Union are depicted on the outer ring.",
+  "lettering": "GUARDIA SVIZZERA PONTIFICIA \r\nCITTÀ DEL VATICANO \r\n1506\r\nO. ROSSI \r\n2006\r\nR",
+  "lettering_scripts": [
+   {
+    "name": "Latin"
+   }
+  ],
+  "lettering_translation": "Pontifical Swiss Guard\r\nCity State of Vatican\r\n1506\r\nO. ROSSI \r\n2006\r\nR",
+  "picture": "https://en.numista.com/catalogue/photos/vatican/6955ec52a85df1.17900100-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/vatican/6955ec52a85df1.17900100-180.jpg",
+  "picture_copyright": "brismike",
+  "picture_license_name": "CC BY-NC",
+  "picture_license_url": "https://creativecommons.org/licenses/by-nc/4.0/deed.en"
+ },
+ "reverse": {
+  "engravers": [
+   "Luc Luycx"
+  ],
+  "description": "A map, next to the face value, shows the European continent without borders.",
+  "lettering": "2 EURO LL",
+  "lettering_scripts": [
+   {
+    "name": "Latin"
+   }
+  ],
+  "picture": "https://en.numista.com/catalogue/photos/vatican/6955ec540b8742.10027478-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/vatican/6955ec540b8742.10027478-180.jpg",
+  "picture_copyright": "brismike",
+  "picture_license_name": "CC BY-NC",
+  "picture_license_url": "https://creativecommons.org/licenses/by-nc/4.0/deed.en"
+ },
+ "commemorated_topic": "500th Anniversary of the Swiss Guard",
+ "tags": [
+  "Map"
+ ],
+ "references": [
+  {
+   "catalogue": {
+    "id": 3,
+    "code": "KM"
+   },
+   "number": "394"
+  },
+  {
+   "catalogue": {
+    "id": 24,
+    "code": "Schön"
+   },
+   "number": "386"
+  }
+ ],
+ "weight": 8.5,
+ "orientation": "medal",
+ "edge": {
+  "description": "Finely ribbed with edge lettering: six times the sequence \"2 * \" alternately upright and inverted",
+  "lettering": "2 * 2 * 2 * 2 * 2 * 2 *",
+  "picture": "https://en.numista.com/catalogue/photos/vatican/696fb3d5643f49.69163017-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/vatican/696fb3d5643f49.69163017-180.jpg",
+  "picture_copyright": "Mike Bentley"
+ },
+ "mints": [
+  {
+   "id": 22,
+   "name": "Rome"
+  }
+ ],
+ "category": "coin",
+ "type": "Non-circulating coins"
+}

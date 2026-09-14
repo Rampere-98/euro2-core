@@ -1,0 +1,151 @@
+{
+ "id": 2169,
+ "url": "https://es.numista.com/2169",
+ "title": "2 Euros (Bundesländer - \"Schleswig-Holstein\")",
+ "object_type": {
+  "id": 2,
+  "name": "Monedas circulantes conmemorativas"
+ },
+ "issuer": {
+  "code": "allemagne",
+  "name": "Alemania, República Federal de"
+ },
+ "min_year": 2006,
+ "max_year": 2006,
+ "ruler": [
+  {
+   "id": 2860,
+   "name": "República Federal",
+   "wikidata_id": "Q183"
+  }
+ ],
+ "value": {
+  "text": "2 euros",
+  "numeric_value": 2,
+  "currency": {
+   "id": 9007,
+   "name": "Euro",
+   "full_name": "Euro (2002-presente)"
+  }
+ },
+ "demonetization": {
+  "is_demonetized": false
+ },
+ "size": 25.75,
+ "thickness": 2.2,
+ "shape": "Circular",
+ "composition": {
+  "text": "Bimetálica: centro de níquel recubierto de latón de níquel y anillo de cuproníquel"
+ },
+ "technique": {
+  "text": "Acuñación a máquina"
+ },
+ "obverse": {
+  "engravers": [
+   "Heinz Hoyer"
+  ],
+  "description": "El Holstentor, la puerta que simboliza la ciudad de Lübeck, aparece en el centro de la moneda y, debajo, la palabra \"Schleswig-Holstein\", el primero de los 16 estados federados de Alemania que se conmemora en una moneda de euro. Las iniciales del grabador \"HH\" aparecen a la derecha de la imagen y la marca de ceca \"A\", \"D\", \"F\", \"G\" o \"J\", según la ceca, a la izquierda. En el anillo exterior figuran el año de acuñación, 2006, las doce estrellas de la Unión Europea y la mención \"Bundesrepublik Deutschland\".",
+  "lettering": "2006\r\nG   HH\r\nSCHLESWIG-HOLSTEIN\r\nBUNDESREPUBLIK DEUTSCHLAND",
+  "lettering_scripts": [
+   {
+    "name": "Latina"
+   }
+  ],
+  "picture": "https://en.numista.com/catalogue/photos/allemagne/6964d34d1e98e5.11433162-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d34d1e98e5.11433162-180.jpg",
+  "picture_copyright": "brismike",
+  "picture_license_name": "CC BY-NC",
+  "picture_license_url": "https://creativecommons.org/licenses/by-nc/4.0/deed.es"
+ },
+ "reverse": {
+  "engravers": [
+   "Luc Luycx"
+  ],
+  "description": "Un mapa, junto al valor facial, muestra el continente europeo sin fronteras.",
+  "lettering": "2 EURO LL",
+  "lettering_scripts": [
+   {
+    "name": "Latina"
+   }
+  ],
+  "picture": "https://en.numista.com/catalogue/photos/allemagne/6964d34e2987d4.70648715-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d34e2987d4.70648715-180.jpg",
+  "picture_copyright": "brismike",
+  "picture_license_name": "CC BY-NC",
+  "picture_license_url": "https://creativecommons.org/licenses/by-nc/4.0/deed.es"
+ },
+ "series": "German states",
+ "commemorated_topic": "Estado de Schleswig-Holstein",
+ "tags": [
+  "Castillo o fortificación",
+  "Mapa"
+ ],
+ "references": [
+  {
+   "catalogue": {
+    "id": 3,
+    "code": "KM"
+   },
+   "number": "253"
+  },
+  {
+   "catalogue": {
+    "id": 80,
+    "code": "J"
+   },
+   "number": "519"
+  },
+  {
+   "catalogue": {
+    "id": 24,
+    "code": "Schön"
+   },
+   "number": "242"
+  },
+  {
+   "catalogue": {
+    "id": 81,
+    "code": "AKS"
+   },
+   "number": "L1"
+  }
+ ],
+ "weight": 8.5,
+ "orientation": "medal",
+ "edge": {
+  "description": "Con lengüeta e inscripción",
+  "lettering": "EINIGKEIT UND RECHT UND FREIHEIT",
+  "lettering_scripts": [
+   {
+    "name": "Latina"
+   }
+  ],
+  "picture": "https://en.numista.com/catalogue/photos/allemagne/2031-original.jpg",
+  "thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2031-180.jpg",
+  "picture_copyright": "Cyrillius"
+ },
+ "mints": [
+  {
+   "id": 5,
+   "name": "Berlín"
+  },
+  {
+   "id": 1,
+   "name": "Múnich"
+  },
+  {
+   "id": 2,
+   "name": "Casa de la Moneda Estatal de Stuttgart / Casas de la Moneda Estatales de Baden-Wurtemberg"
+  },
+  {
+   "id": 3,
+   "name": "Casa de la Moneda Estatal de Karlsruhe / Casas de la Moneda Estatales de Baden-Wurtemberg"
+  },
+  {
+   "id": 4,
+   "name": "Hamburg Mint"
+  }
+ ],
+ "category": "coin",
+ "type": "Monedas circulantes conmemorativas"
+}

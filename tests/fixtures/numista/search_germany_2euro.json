@@ -1,0 +1,1208 @@
+{
+ "count": 71,
+ "types": [
+  {
+   "id": 54262,
+   "title": "1 Vereinsthaler - Louis II",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "bavaria_kingdom",
+    "name": "Bavaria, Kingdom of"
+   },
+   "min_year": 1871,
+   "max_year": 1871,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/bavaria_kingdom/61d9d180884af4.18862768-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/bavaria_kingdom/61d9d180c13185.66868798-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 189730,
+   "title": "1 Ducat - Charles XI",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "pomerania_swedish_possession",
+    "name": "Pomerania, Swedish dominion of"
+   },
+   "min_year": 1673,
+   "max_year": 1674,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/pomerania_swedish_possession/177-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/pomerania_swedish_possession/178-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 188772,
+   "title": "½ Thaler - Frederick August I",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "saxony_electorate",
+    "name": "Saxony (Albertinian Line), Electorate of"
+   },
+   "min_year": 1698,
+   "max_year": 1705,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/saxony_electorate/1130-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/saxony_electorate/1131-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 242320,
+   "title": "2 Thalers",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "stade_city",
+    "name": "Stade, City of"
+   },
+   "min_year": 1686,
+   "max_year": 1686,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/stade_city/5f9967284d4446.76403637-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/stade_city/5f99672879a329.25286415-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 4675,
+   "title": "2 Deutsche Mark",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 1951,
+   "max_year": 1951,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2097-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2098-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 105,
+   "title": "1 Euro Cent",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2026,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1383-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1384-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 106,
+   "title": "2 Euro Cents",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2026,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/61fcbada841871.31395888-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/61fcbadb755495.73524562-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 107,
+   "title": "5 Euro Cents",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2026,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/61fde61bf27925.91167153-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/61fde61ce40330.51779213-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 108,
+   "title": "10 Euro Cents (1st map)",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2006,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2191-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2192-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 111,
+   "title": "1 Euro (1st map)",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2006,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6054bcd77f1443.20499529-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6054bcd81101a4.32318974-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 284509,
+   "title": "2 Euro (Pattern)",
+   "object_type": {
+    "id": 6,
+    "name": "Patterns"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2002,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/607028605cac41.13622376-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/60702860942de1.20733337-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 112,
+   "title": "2 Euros (1st map)",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2006,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/612b6447da2bc1.07605281-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/612b6448a14a89.67931520-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 2169,
+   "title": "2 Euros (Bundesländer - \"Schleswig-Holstein\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2006,
+   "max_year": 2006,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d34d1e98e5.11433162-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d34e2987d4.70648715-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 2162,
+   "title": "2 Euros (Treaty of Rome)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2007,
+   "max_year": 2007,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d56127a4c5.51752617-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d562847006.63152249-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 2201,
+   "title": "2 Euros (Bundesländer - \"Mecklenburg-Vorpommern\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2007,
+   "max_year": 2007,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d4b886c7b0.83631624-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d4b9b0e0c3.70239672-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 2994,
+   "title": "2 Euros (Bundesländer - \"Hamburg\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2008,
+   "max_year": 2008,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/665d6c0535d166.88834166-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/665d6c06b22cf8.25525209-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 327881,
+   "title": "2 Euros Bundesländer - \"Hamburg\" (Mule)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2008,
+   "max_year": 2008,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/665d67767af642.52034385-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/665d67780f25d2.28759252-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 6323,
+   "title": "2 Euros (2nd map)",
+   "object_type": {
+    "id": 1,
+    "name": "Standard circulation coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2008,
+   "max_year": 2026,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/612b63d6c944f7.84952732-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/612b63d7773d64.38130857-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 5053,
+   "title": "2 Euros (Bundesländer - \"Saarland\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2009,
+   "max_year": 2009,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d646e1c379.61073840-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d647eabf81.79964224-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 5054,
+   "title": "2 Euros (Economic and Monetary Union)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2009,
+   "max_year": 2009,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d6faaa4763.25364336-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964d6fbc839c5.60074277-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 10069,
+   "title": "2 Euros (Bundesländer - \"Bremen\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2010,
+   "max_year": 2010,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c6c21ce8445.67279742-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c6c23309d19.10989170-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 18666,
+   "title": "2 Euros (Bundesländer - \"Nordrhein-Westfalen\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2011,
+   "max_year": 2011,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c807da64858.05961836-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c807ec8e8f6.14974412-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 29694,
+   "title": "2 Euros (Bundesländer - \"Bayern\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2012,
+   "max_year": 2012,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c80fbde7664.95878059-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c80fd10cb14.21641260-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 28321,
+   "title": "2 Euros (10 Years of Euro Cash)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2012,
+   "max_year": 2012,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/63ca8d040401f3.10871746-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/63ca8d054f4fd2.53289562-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 42149,
+   "title": "2 Euros (Bundesländer - \"Baden-Württemberg\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2013,
+   "max_year": 2013,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c82701875f5.38276696-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c82714eb803.33771552-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 41786,
+   "title": "2 Euros (Élysée Treaty)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2013,
+   "max_year": 2013,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964dcb0c5e701.49781680-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964dcb1d77dc8.71907194-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 53570,
+   "title": "2 Euros (Bundesländer - \"Niedersachsen\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2014,
+   "max_year": 2014,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c840a819189.09817032-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c840baaf5c7.35303126-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 69263,
+   "title": "2 Euros (Bundesländer - \"Hessen\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2015,
+   "max_year": 2015,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628dc1f8e2a6d4.68325415-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628dc1fa315a23.95710021-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 69264,
+   "title": "2 Euros (25 Years of German Unity)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2015,
+   "max_year": 2015,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c8560e54b00.37523665-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/628c85621a4388.83072341-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 76632,
+   "title": "2 Euros (30 Years of European Union Flag)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2015,
+   "max_year": 2015,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964dbb7a82ff7.41738252-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964dbb89d3bf6.88651189-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 284594,
+   "title": "2 Euros (Bundesländer - \"Hessen\" - Pattern)",
+   "object_type": {
+    "id": 6,
+    "name": "Patterns"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2015,
+   "max_year": 2015,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6070cc1c3f4ba7.81654804-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6070cc1c7d56b5.31015185-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 80927,
+   "title": "2 Euros (Bundesländer - \"Sachsen\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2016,
+   "max_year": 2016,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/65abe2b973f135.30063829-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/65abe2bbd98173.08870809-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 102445,
+   "title": "2 Euros (Bundesländer - \"Rheinland-Pfalz\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2017,
+   "max_year": 2017,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964dafb6ffa96.34971750-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964dafc882458.77717394-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 132936,
+   "title": "2 Euros (Helmut Schmidt)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2018,
+   "max_year": 2018,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2319-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2320-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 132935,
+   "title": "2 Euros (Bundesländer - \"Berlin\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2018,
+   "max_year": 2018,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2317-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2318-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 139058,
+   "title": "2 Euros (Bundesrat)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2019,
+   "max_year": 2019,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964da436ebb75.74811240-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964da44919351.72684830-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 180626,
+   "title": "2 Euros (Berlin Wall)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2019,
+   "max_year": 2019,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/65abe3f39966e2.41789160-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/65abe3f68bb7a3.55668344-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 226447,
+   "title": "2 Euros (Kneeling to Warsaw)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2020,
+   "max_year": 2020,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/5f96b92f57d462.56384535-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/5f96b92f9cfe40.89340525-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 193506,
+   "title": "2 Euros (Bundesländer - \"Brandenburg\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2020,
+   "max_year": 2020,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/65abe4d63e8dc9.43883539-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/65abe4da32e544.18333309-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 267621,
+   "title": "2 Euros (Bundesländer - \"Sachsen-Anhalt\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2021,
+   "max_year": 2021,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/699316b0534d22.36970377-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/699316b1a85f48.53732703-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 314709,
+   "title": "2 Euros (Bundesländer - \"Thüringen\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2022,
+   "max_year": 2022,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/65abe588d2f604.87869566-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/65abe58b89ac68.01805574-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 324867,
+   "title": "2 Euros (Erasmus Programme)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2022,
+   "max_year": 2022,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/694b6eb7676f60.98647851-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/694b6eb862a7a5.43728405-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 356441,
+   "title": "2 Euros (Charlemagne)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2023,
+   "max_year": 2023,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964defec4e9f7.47119857-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964deffeb63a7.14806909-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 352712,
+   "title": "2 Euros (Bundesländer II - \"Hamburg\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2023,
+   "max_year": 2023,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964de03ddaf22.19408089-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6964de04e0ac83.37826501-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 394629,
+   "title": "2 Euros (Bundesländer II - \"Mecklenburg-Vorpommern\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2024,
+   "max_year": 2024,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/66b3154b568512.29718308-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/66b3154c8da1d3.13883943-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 396761,
+   "title": "2 Euros (Constitution of St. Paul's Church)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2024,
+   "max_year": 2024,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/681231afb8bc98.22167167-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/681231b0f3b1c2.72110076-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 439766,
+   "title": "2 Euros (Bundesländer II - \"Saarland\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2025,
+   "max_year": 2025,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/681238ba0f13f1.61531187-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/681238bb430989.68658717-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 448790,
+   "title": "2 Euros (German Reunification)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2025,
+   "max_year": 2025,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6992fed24ccbf1.73287892-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6992fed34f7894.58014045-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 544530,
+   "title": "2 Euros (Konrad Adenauer)",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2026,
+   "max_year": 2026,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6992fd06506521.46627148-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6992fd07534514.63288744-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 474550,
+   "title": "2 Euros (Bundesländer II - \"Bremen\")",
+   "object_type": {
+    "id": 2,
+    "name": "Circulating commemorative coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2026,
+   "max_year": 2026,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6992fd952426b8.52663388-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6992fd96276923.95019620-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 284596,
+   "title": "5 Euro (Planet Earth - Pattern)",
+   "object_type": {
+    "id": 6,
+    "name": "Patterns"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2016,
+   "max_year": 2016,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6070cdfed6a947.62147144-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6070cdff14dea2.88543567-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 82985,
+   "title": "5 Euros (Planet Earth)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2016,
+   "max_year": 2016,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2468-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2469-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 13180,
+   "title": "10 Euros (Elisabeth von Thüringen)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2007,
+   "max_year": 2007,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/63b983fc63f830.59018569-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/63b983fe755703.30529175-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 13204,
+   "title": "10 Euros (IAAF World Championships)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2009,
+   "max_year": 2009,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1398-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1397-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 16603,
+   "title": "10 Euros (FIS-Alpine Ski WM)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2010,
+   "max_year": 2010,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1450-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1449-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 43767,
+   "title": "10 Euros (Schneewittchen)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2013,
+   "max_year": 2013,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1658-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1659-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 46501,
+   "title": "10 Euros (Schneewittchen; Silver Proof Issue)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2013,
+   "max_year": 2013,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1686-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1687-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 60030,
+   "title": "10 Euros (Johann Gottfried Schadow)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2014,
+   "max_year": 2014,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2151-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2152-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 62525,
+   "title": "10 Euros (Johann Gottfried Schadow; Silver Proof Issue)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2014,
+   "max_year": 2014,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1872-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/1873-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 187269,
+   "title": "10 Euros (An Land)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2020,
+   "max_year": 2020,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/5f5daaf7655ce0.39217872-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/5f5daaf8109df7.33194262-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 295253,
+   "title": "10 Euros (Auf dem Wasser)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2021,
+   "max_year": 2021,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/60af6fa3ce0ef8.20999966-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/60af6fa41b1420.74215181-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 324869,
+   "title": "10 Euros (Care)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2022,
+   "max_year": 2022,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/624edc175ac556.69906069-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/624edc17c14b74.98688229-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 394532,
+   "title": "10 Euro (Polizei)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2024,
+   "max_year": 2024,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6638ee6b039664.91976708-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6638ee6bef0821.57337278-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 141117,
+   "title": "20 Euros (Peter Behrens)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2018,
+   "max_year": 2018,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2480-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2481-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 324871,
+   "title": "20 Euros (Deutsches Kinderhilfswerk)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2022,
+   "max_year": 2022,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/624ede2aefd944.33245152-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/624ede2bc20e19.01836970-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 443713,
+   "title": "25 Euros (Advent wreath)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2024,
+   "max_year": 2024,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6779b5a3612873.25004094-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/6779b5a3eb2198.14892474-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 449064,
+   "title": "50 Euros (Biblical Magi, proof issue)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2025,
+   "max_year": 2025,
+   "category": "coin"
+  },
+  {
+   "id": 570281,
+   "title": "50 Euros (Biblical Magi)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2026,
+   "max_year": 2026,
+   "category": "coin"
+  },
+  {
+   "id": 15435,
+   "title": "100 Euros (Euro Currency)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2002,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/63c911ef765547.80036106-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/63c911f138a840.35472119-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 151463,
+   "title": "100 Euros (Palaces in Brühl)",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2018,
+   "max_year": 2018,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2378-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2377-180.jpg",
+   "category": "coin"
+  },
+  {
+   "id": 82533,
+   "title": "200 Euros",
+   "object_type": {
+    "id": 3,
+    "name": "Non-circulating coins"
+   },
+   "issuer": {
+    "code": "allemagne",
+    "name": "Germany, Federal Republic of"
+   },
+   "min_year": 2002,
+   "max_year": 2002,
+   "obverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2288-180.jpg",
+   "reverse_thumbnail": "https://en.numista.com/catalogue/photos/allemagne/2287-180.jpg",
+   "category": "coin"
+  }
+ ]
+}
