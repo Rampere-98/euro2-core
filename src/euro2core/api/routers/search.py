@@ -19,12 +19,13 @@ async def search(
     lang: str = LangDep,
 ) -> Page[TypeSummary]:
     """Accent- and case-insensitive substring search over titles and descriptions."""
-    pattern = f"%{q}%"
+    escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{escaped}%"
     matches = (
         select(TextTranslation.entity_id)
         .where(
             TextTranslation.entity == "coin_type",
-            func.unaccent(TextTranslation.text).ilike(func.unaccent(pattern)),
+            func.unaccent(TextTranslation.text).ilike(func.unaccent(pattern), escape="\\"),
         )
         .distinct()
         .subquery()

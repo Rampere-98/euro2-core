@@ -8,6 +8,7 @@ from euro2core.api.deps import SessionDep
 from euro2core.api.schemas import Page, SyncRunOut
 from euro2core.config import get_settings
 from euro2core.domain.models import SyncRun
+from euro2core.scheduler.jobs import is_running
 from euro2core.scheduler.service import JOB_SPECS, JobFactory
 
 log = logging.getLogger(__name__)
@@ -40,6 +41,8 @@ async def trigger_job(job: str, request: Request, background: BackgroundTasks) -
     runner = JOBS.get(job)
     if runner is None:
         raise HTTPException(status_code=404, detail=f"unknown job; known: {sorted(JOBS)}")
+    if is_running(job):
+        raise HTTPException(status_code=409, detail=f"{job} is already running")
 
     async def run() -> None:
         try:

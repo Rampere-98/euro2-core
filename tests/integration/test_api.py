@@ -210,3 +210,59 @@ async def test_trigger_sync_job_is_recorded(client, catalog, monkeypatch):
     assert r.status_code == 202
     assert r.json()["job"] == "ecb_discover"
     assert (await client.post("/sync/nope")).status_code == 404
+
+
+async def test_trigger_sync_is_refused_while_the_job_runs(client, catalog, monkeypatch):
+    monkeypatch.setattr("euro2core.api.routers.sync.is_running", lambda job: True)
+    assert (await client.post("/sync/ecb_discover")).status_code == 409
+
+
+async def test_image_endpoint_handles_reference_only_and_escaped_paths(client, catalog, session):
+    from euro2core.domain.enums import ImageSide
+    from euro2core.domain.models import CoinImage
+
+    reference_only = CoinImage(
+        type_id=catalog["type_id"],
+        side=ImageSide.REVERSE,
+        source_url="https://en.numista.com/x.jpg",
+        local_path=None,
+    )
+    outside = CoinImage(
+        type_id=catalog["type_id"],
+        side=ImageSide.EDGE,
+        source_url="https://example.org/y.jpg",
+        local_path=str(Path(__file__).resolve()),  # a real file, but not under data/images
+        sha256="0" * 64,
+    )
+    session.add_all([reference_only, outside])
+    await session.commit()
+    assert (await client.get(f"/images/{reference_only.id}")).status_code == 404
+    assert (await client.get(f"/images/{outside.id}")).status_code == 404
+    detail = (await client.get(f"/types/{catalog['type_id']}")).json()
+    urls = {i["side"]: i["url"] for i in detail["images"]}
+    assert urls["reverse"] is None
+
+
+async def test_has_conflict_ignores_formatting_differences(client, catalog, session):
+    from euro2core.catalog.claims import record_claim
+    from euro2core.catalog.seed import get_source
+
+    numista = await get_source(session, "numista")
+    # same figure as the ECB winner, written with thousands separators: not a conflict
+    await record_claim(
+        session,
+        entity="coin_type",
+        entity_id=catalog["type_id"],
+        field="issue_date_raw",
+        value="February 2006",
+        source=numista,
+    )
+    await session.commit()
+    facts = (await client.get(f"/types/{catalog['type_id']}")).json()["facts"]
+    assert facts["issue_date_raw"]["has_conflict"] is False
+    assert facts["mintage_total"]["has_conflict"] is True  # 30,000,000 vs 30,110,000 still is
+
+
+async def test_search_treats_sql_wildcards_literally(client, catalog):
+    assert (await client.get("/search", params={"q": "%_%"})).json()["total"] == 0
+    assert (await client.get("/search", params={"q": "schleswig"})).json()["total"] == 1

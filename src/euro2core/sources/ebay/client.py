@@ -116,6 +116,10 @@ class EbayClient:
         )
         return self._token
 
+    def charge(self, calls: int) -> None:
+        """Account for calls made earlier today by other client instances."""
+        self._calls_today += max(0, calls)
+
     def _spend_budget(self) -> None:
         today = datetime.now(UTC).date()
         if today != self._budget_day:

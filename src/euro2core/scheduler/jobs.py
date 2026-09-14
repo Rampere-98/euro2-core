@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import traceback
 from collections.abc import Awaitable, Callable, Sequence
@@ -34,21 +35,57 @@ from euro2core.sources.numista.parser import SEARCH_ISSUERS, parse_issue, parse_
 log = logging.getLogger(__name__)
 
 Sessions = async_sessionmaker[AsyncSession]
-JobBody = Callable[[Sessions, dict[str, Any], dict[str, Any]], Awaitable[None]]
+Checkpoint = Callable[[], Awaitable[None]]
+JobBody = Callable[[Sessions, dict[str, Any], dict[str, Any], Checkpoint], Awaitable[None]]
+
+# One lock per job name: the scheduler and POST /sync/{job} live in the same process, and two
+# copies of the same job would race on unique keys and duplicate claims and events.
+_locks: dict[str, asyncio.Lock] = {}
+
+
+class JobAlreadyRunning(RuntimeError):
+    pass
+
+
+def is_running(job: str) -> bool:
+    lock = _locks.get(job)
+    return lock is not None and lock.locked()
+
+
+def _lock_for(job: str) -> asyncio.Lock:
+    return _locks.setdefault(job, asyncio.Lock())
 
 
 async def _run_job(engine: AsyncEngine, job: str, body: JobBody, stats: dict[str, Any]) -> SyncRun:
-    """Wrap a job in a sync_run row: seeds reference data, resumes cursor, always closes the run."""
+    """Wrap a job in a sync_run row: serialises same-name jobs, seeds reference data, resumes the
+    cursor of a failed or orphaned run, checkpoints it as the job advances, always closes the run.
+    """
+    async with _lock_for(job):
+        return await _run_job_locked(engine, job, body, stats)
+
+
+async def _run_job_locked(
+    engine: AsyncEngine, job: str, body: JobBody, stats: dict[str, Any]
+) -> SyncRun:
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     run = SyncRun(job=job, status=SyncStatus.RUNNING)
     async with sessions() as session:
         await ensure_reference_data(session)
         cursor = await _last_cursor(session, job)
-        run.cursor = cursor
+        run.cursor = dict(cursor)
         session.add(run)
         await session.commit()
+        run_id = run.id
+
+    async def checkpoint() -> None:
+        async with sessions() as session:
+            row = await session.get(SyncRun, run_id)
+            if row is not None:
+                row.cursor = dict(cursor)
+                await session.commit()
+
     try:
-        await body(sessions, stats, cursor)
+        await body(sessions, stats, cursor, checkpoint)
         status, error = SyncStatus.SUCCEEDED, None
     except Exception as exc:  # the run record must always be closed
         status, error = SyncStatus.FAILED, f"{exc}\n{traceback.format_exc()}"
@@ -59,22 +96,29 @@ async def _run_job(engine: AsyncEngine, job: str, body: JobBody, stats: dict[str
         run.error = error
         run.stats = stats
         # a finished run needs no cursor; a failed one keeps it so the next run resumes
-        run.cursor = cursor if status == SyncStatus.FAILED else None
+        run.cursor = dict(cursor) if status == SyncStatus.FAILED else None
         run.finished_at = datetime.now(UTC)
         await session.commit()
     return run
 
 
 async def _last_cursor(session: AsyncSession, job: str) -> dict[str, Any]:
+    """Cursor to resume from. A run still marked RUNNING cannot be alive (we hold the job lock):
+    the process died mid-job, so it is closed as failed and its checkpointed cursor reused."""
     last = (
         await session.scalars(
-            select(SyncRun)
-            .where(SyncRun.job == job, SyncRun.finished_at.is_not(None))
-            .order_by(SyncRun.finished_at.desc())
-            .limit(1)
+            select(SyncRun).where(SyncRun.job == job).order_by(SyncRun.started_at.desc()).limit(1)
         )
     ).first()
-    if last is not None and last.status == SyncStatus.FAILED and last.cursor:
+    if last is None:
+        return {}
+    if last.status == SyncStatus.RUNNING:
+        last.status = SyncStatus.FAILED
+        last.error = "process ended before the run finished"
+        last.finished_at = datetime.now(UTC)
+        await session.flush()
+        return dict(last.cursor or {})
+    if last.status == SyncStatus.FAILED and last.cursor:
         return dict(last.cursor)
     return {}
 
@@ -100,7 +144,9 @@ async def run_ecb_discover(
         "images_failed": 0,
     }
 
-    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
         for year in years:
             try:
                 entries = await source.fetch_year(year)
@@ -137,7 +183,9 @@ async def run_ecb_discover(
 async def run_recompute_prices(engine: AsyncEngine) -> SyncRun:
     stats: dict[str, Any] = {"issues_with_observations": 0, "issues_estimated": 0, "by_basis": {}}
 
-    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
         async with sessions() as session:
             issue_ids = await issues_with_observations(session)
         stats["issues_with_observations"] = len(issue_ids)
@@ -156,7 +204,9 @@ async def run_recompute_prices(engine: AsyncEngine) -> SyncRun:
 async def run_recompute_rarity(engine: AsyncEngine) -> SyncRun:
     stats: dict[str, Any] = {}
 
-    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
         async with sessions() as session:
             stats.update(await recompute_all_rarity(session))
             await session.commit()
@@ -193,9 +243,12 @@ async def run_ebay_market(
         "listings_discarded": 0,
     }
 
-    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
         async with sessions() as session:
             targets = await _market_targets(session, hot_days)
+            client.charge(await _ebay_calls_today(session))
         done = list(cursor.get("done", []))
         for country, year in targets:
             for marketplace in markets:
@@ -220,9 +273,27 @@ async def run_ebay_market(
                 stats["listings_discarded"] += result.discarded
                 done.append(key)
                 cursor["done"] = list(done)
+                await checkpoint()
 
     job = "ebay_hot" if hot_days else "ebay_market"
     return await _run_job(engine, job, body, stats)
+
+
+EBAY_JOBS = ("ebay_market", "ebay_hot", "auction_close_check")
+
+
+async def _ebay_calls_today(session: AsyncSession) -> int:
+    """Calls already spent today by earlier runs (each run builds a fresh client)."""
+    midnight = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    runs = (
+        await session.scalars(
+            select(SyncRun).where(SyncRun.job.in_(EBAY_JOBS), SyncRun.started_at >= midnight)
+        )
+    ).all()
+    return sum(
+        int((r.stats or {}).get("queries", 0)) + int((r.stats or {}).get("checked", 0))
+        for r in runs
+    )
 
 
 async def _market_targets(session: AsyncSession, hot_days: int | None) -> list[tuple[str, int]]:
@@ -249,7 +320,9 @@ async def run_auction_close_check(
     client = EbayClient(client_id=client_id, client_secret=client_secret, user_agent=user_agent)
     stats: dict[str, Any] = {"checked": 0, "sold": 0, "unsold": 0, "still_open": 0}
 
-    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
         async with sessions() as session:
             ended = (
                 await session.scalars(
@@ -304,7 +377,9 @@ async def run_numista_catalog(
         "issues_skipped": 0,
     }
 
-    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
         done = list(cursor.get("issuers_done", []))
         for issuer in issuers:
             if issuer in done:
@@ -333,6 +408,7 @@ async def run_numista_catalog(
             done.append(issuer)
             cursor["issuers_done"] = list(done)
             stats["issuers_done"].append(issuer)
+            await checkpoint()
         async with sessions() as session:
             stats["reconcile"] = await link_by_elimination(session)
             await session.commit()
@@ -343,7 +419,9 @@ async def run_numista_catalog(
 async def run_reconcile(engine: AsyncEngine) -> SyncRun:
     stats: dict[str, Any] = {}
 
-    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
         async with sessions() as session:
             stats.update(await link_by_elimination(session))
             await session.commit()

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.api.schemas import FactAlternative, FactOut, ImageOut
+from euro2core.consensus.resolver import CONFLICT_MIN_RANK, normalize
 from euro2core.domain.models import CoinImage, FactClaim, Source, TextTranslation
 
 
@@ -64,21 +65,24 @@ async def facts_for(session: AsyncSession, entity: str, entity_id: uuid.UUID) ->
         if winner is None:
             continue
         w, w_code = winner
+        w_norm = normalize(field, w.value)
+        differing = [
+            (c, code, rank)
+            for c, code, rank in claims
+            if not c.is_winner and normalize(field, c.value) != w_norm
+        ]
         alternatives = [
             FactAlternative(
                 value=c.value, source=code, observed_at=c.observed_at, evidence_url=c.evidence_url
             )
-            for c, code, _ in claims
-            if not c.is_winner and c.value != w.value
+            for c, code, _ in differing
         ]
         facts[field] = FactOut(
             value=w.value,
             source=w_code,
             observed_at=w.observed_at,
             evidence_url=w.evidence_url,
-            has_conflict=any(
-                rank >= 50 for c, _, rank in claims if not c.is_winner and c.value != w.value
-            ),
+            has_conflict=any(rank >= CONFLICT_MIN_RANK for _, _, rank in differing),
             alternatives=alternatives,
         )
     return facts
