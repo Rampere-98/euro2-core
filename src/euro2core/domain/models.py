@@ -345,3 +345,19 @@ class Identification(Base):
     embedding: Mapped[list[float] | None] = mapped_column(VECTOR(512))
 
     __table_args__ = (Index("ix_identification_created", "created_at"),)
+
+
+class ImageEmbedding(Base):
+    """CLIP vector of a catalog image at one rotation; several per image make retrieval
+    robust to how the coin was held when photographed."""
+
+    __tablename__ = "image_embedding"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    image_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coin_image.id", ondelete="CASCADE"), nullable=False
+    )
+    rotation: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(512), nullable=False)
+
+    __table_args__ = (UniqueConstraint("image_id", "rotation", name="uq_image_embedding_rotation"),)

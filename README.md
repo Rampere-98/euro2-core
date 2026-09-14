@@ -94,3 +94,21 @@ See [docs/superpowers/specs](docs/superpowers/specs/) for the approved design sp
 ## License
 
 MIT
+
+## Module B — identification by photo
+
+`POST /identify` (multipart `file`) answers with the most likely coins. Pipeline:
+
+1. **OpenCV** finds the coin (Hough circle), crops a square around it and greys out the outer
+   ring: the 12 stars are identical on every 2 euro coin and would only add noise.
+2. **CLIP ViT-B/32** embeds the core; the catalog is indexed at 12 rotations per image in
+   pgvector, because coins are photographed at any orientation.
+3. **SIFT + RANSAC** verifies the shortlist geometrically, so the answer is the exact design
+   rather than a similar one. Confidence comes from the number of consistent feature matches.
+
+Measured on 80 catalog photos rotated up to ±25°, downscaled to 140–260 px and recompressed
+at 45–80 % JPEG quality: **76/80 top-1 (95 %)**; three of the four misses were returned as
+"low" confidence and the fourth was a joint issue whose design is identical across countries.
+Every request is stored with its embedding; `POST /identify/{id}/confirm` records the true coin,
+which is the training set for future fine-tuning. `uv run euro2 recompute embeddings` builds the
+index (downloads ~600 MB of weights once); the scheduler keeps it updated daily.

@@ -52,3 +52,14 @@ def test_exif_orientation_is_honoured_and_output_is_rgb():
     img.save(buf, format="JPEG")
     crop = prepare_coin_image(buf.getvalue())
     assert crop.image.mode == "RGB"
+
+
+def test_inner_core_masks_the_common_star_ring():
+    from euro2core.vision.preprocess import inner_core
+
+    img = Image.new("RGB", (224, 224), (255, 0, 0))  # all red, ring included
+    core = inner_core(img)
+    px = np.asarray(core)
+    assert px[112, 112].tolist() == [255, 0, 0]  # centre untouched
+    assert px[112, 6].tolist() != [255, 0, 0]  # ring replaced by neutral grey
+    assert px[6, 6].tolist() != [255, 0, 0]

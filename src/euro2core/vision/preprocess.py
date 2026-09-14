@@ -9,6 +9,9 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 OUTPUT_SIZE = 224
 MAX_ANALYSIS_SIDE = 800  # Hough on a downscaled copy keeps CPU time predictable
+# The outer ring (12 stars) is identical on every 2 euro coin; only the core carries the design.
+CORE_RATIO = 0.74
+NEUTRAL = (128, 128, 128)
 
 
 @dataclass(frozen=True)
@@ -61,3 +64,14 @@ def _find_coin(image: Image.Image) -> tuple[int, int, int] | None:
     # the largest confident circle is the coin; a coin photo rarely has bigger round things
     x, y, r = max(circles[0], key=lambda c: c[2])
     return int(x / scale), int(y / scale), int(r / scale)
+
+
+def inner_core(image: Image.Image, ratio: float = CORE_RATIO) -> Image.Image:
+    """Grey out everything outside the coin's inner core so shared ring features cannot match."""
+    w, h = image.size
+    cx, cy, r = w / 2, h / 2, min(w, h) / 2 * ratio
+    yy, xx = np.ogrid[:h, :w]
+    inside = (xx - cx) ** 2 + (yy - cy) ** 2 <= r * r
+    out = np.asarray(image.convert("RGB")).copy()
+    out[~inside] = NEUTRAL
+    return Image.fromarray(out)
