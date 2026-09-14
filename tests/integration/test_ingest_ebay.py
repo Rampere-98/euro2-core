@@ -191,3 +191,37 @@ async def test_closed_auction_with_bids_becomes_a_realized_sale(germany_2006):
     kinds = {r.observation_kind: r for r in rows}
     assert set(kinds) == {ObservationKind.AUCTION_OPEN, ObservationKind.AUCTION_CLOSED}
     assert kinds[ObservationKind.AUCTION_CLOSED].price == Decimal("6.50")
+
+
+async def test_realized_sales_keep_their_issue_when_seen_again(germany_2006):
+    session = germany_2006
+    sale = listing(
+        "2 Euro Deutschland 2006 Schleswig-Holstein A Stempelglanz",
+        12.0,
+        kind=ObservationKind.SOLD,
+        listing_id="s1",
+    )
+    await ingest_listings(session, [sale])
+    await session.commit()
+    original = (
+        await session.scalars(select(MarketObservation).where(MarketObservation.listing_id == "s1"))
+    ).one()
+    original_issue = original.issue_id
+    # the same sale re-observed with a title that would now resolve elsewhere
+    await ingest_listings(
+        session,
+        [
+            listing(
+                "2 Euro Deutschland 2006 Schleswig-Holstein J PP",
+                12.0,
+                kind=ObservationKind.SOLD,
+                listing_id="s1",
+            )
+        ],
+    )
+    await session.commit()
+    again = (
+        await session.scalars(select(MarketObservation).where(MarketObservation.listing_id == "s1"))
+    ).one()
+    assert again.issue_id == original_issue
+    assert again.grade == original.grade

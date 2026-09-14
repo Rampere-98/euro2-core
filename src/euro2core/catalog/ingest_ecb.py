@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.catalog.claims import record_claim, resolve_field
+from euro2core.catalog.issues import ensure_placeholder_issue
 from euro2core.catalog.seed import get_source
 from euro2core.domain.enums import CoinKind, ImageSide
 from euro2core.domain.models import CoinImage, CoinType, DomainEvent, TextTranslation
@@ -38,6 +39,7 @@ async def ingest_ecb_entries(
         coin_type, created = await _get_or_create_type(session, entry)
         if created:
             stats.types_created += 1
+        await ensure_placeholder_issue(session, coin_type)
         claims = {
             "kind": CoinKind.COMMEMORATIVE.value,
             "title": entry.feature,

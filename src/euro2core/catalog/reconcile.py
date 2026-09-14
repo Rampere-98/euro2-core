@@ -7,6 +7,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.catalog.claims import resolve_field
+from euro2core.catalog.issues import drop_unreferenced_placeholders
 from euro2core.domain.enums import CoinKind
 from euro2core.domain.models import (
     CoinImage,
@@ -24,8 +25,6 @@ log = logging.getLogger(__name__)
 
 PAIR_THRESHOLD = 45
 LEFTOVER_THRESHOLD = 25  # a last pair in a bigger group must at least look related
-# groups that started with more than one candidate per side, within one link_by_elimination call
-_lonely_groups: dict[tuple[str, int], bool] = {}
 
 
 async def link_by_elimination(session: AsyncSession) -> dict[str, int]:
@@ -36,16 +35,17 @@ async def link_by_elimination(session: AsyncSession) -> dict[str, int]:
     editions stay standalone types.
     """
     totals = {"merged": 0, "ambiguous": 0, "unmatched": 0, "editions_kept": 0}
-    _lonely_groups.clear()
+    # groups that started with more than one candidate per side, within this call only
+    crowded: set[tuple[str, int]] = set()
     while True:
-        stats = await _link_pass(session)
+        stats = await _link_pass(session, crowded)
         totals["merged"] += stats["merged"]
         totals.update({k: stats[k] for k in ("ambiguous", "unmatched", "editions_kept")})
         if stats["merged"] == 0:
             return totals
 
 
-async def _link_pass(session: AsyncSession) -> dict[str, int]:
+async def _link_pass(session: AsyncSession, crowded: set[tuple[str, int]]) -> dict[str, int]:
     rows = (
         await session.execute(
             select(CoinType, TextTranslation.text)
@@ -81,14 +81,13 @@ async def _link_pass(session: AsyncSession) -> dict[str, int]:
             continue
         if len(ecb_side) == 1 and len(numista_side) == 1:
             score = link_score(numista_side[0][1], None, ecb_side[0][1])
-            group_was_lonely = _lonely_groups.get((country, year), True)
-            if group_was_lonely or score >= LEFTOVER_THRESHOLD:
+            if (country, year) not in crowded or score >= LEFTOVER_THRESHOLD:
                 pairs = [(ecb_side[0][0], numista_side[0][0])]
             else:
                 stats["ambiguous"] += 1
                 pairs = []
         else:
-            _lonely_groups[(country, year)] = False
+            crowded.add((country, year))
             pairs = _pair_by_similarity(ecb_side, numista_side)
             if len(pairs) < min(len(ecb_side), len(numista_side)):
                 stats["ambiguous"] += 1
@@ -153,6 +152,7 @@ async def merge_types(session: AsyncSession, *, keep: CoinType, drop: CoinType) 
     await _move_translations(session, keep, drop)
     await session.delete(drop)
     await session.flush()
+    await drop_unreferenced_placeholders(session, keep)
     fields = (
         await session.scalars(
             select(FactClaim.field)

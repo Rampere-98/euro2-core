@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.catalog.seed import get_source
+from euro2core.domain.enums import ObservationKind
 from euro2core.domain.models import MarketObservation
 from euro2core.pricing.matcher import match_listing
 from euro2core.sources.ebay.parser import Listing
@@ -61,13 +62,46 @@ async def ingest_listings(
             )
             result.stored += 1
         else:
-            row.issue_id = match.issue_id
             row.price = listing.price
-            row.grade = match.grade
-            row.match_confidence = match.confidence
             row.observed_at = listing.observed_at
             row.ends_at = listing.end_date
             row.title_raw = listing.title
+            if listing.kind not in REALIZED:
+                # active listings follow the catalog as it grows; a recorded sale never migrates
+                row.issue_id = match.issue_id
+                row.grade = match.grade
+                row.match_confidence = match.confidence
             result.updated += 1
     await session.flush()
     return result
+
+
+REALIZED = frozenset({ObservationKind.SOLD, ObservationKind.AUCTION_CLOSED})
+
+
+async def close_auction(
+    session: AsyncSession, open_row: MarketObservation, sale: Listing
+) -> MarketObservation:
+    """Record the realized sale of a tracked auction, inheriting the issue and grade that were
+    resolved while it was open, then drop the open-bid row (a bid is not a price signal)."""
+    closed = MarketObservation(
+        issue_id=open_row.issue_id,
+        source_id=open_row.source_id,
+        marketplace=open_row.marketplace,
+        observation_kind=ObservationKind.AUCTION_CLOSED,
+        price=sale.price,
+        currency=sale.currency,
+        grade=open_row.grade,
+        sheldon=open_row.sheldon,
+        certified_by=open_row.certified_by,
+        listing_id=open_row.listing_id,
+        listing_url=open_row.listing_url,
+        title_raw=open_row.title_raw,
+        match_confidence=open_row.match_confidence,
+        observed_at=sale.observed_at,
+        ends_at=sale.end_date,
+    )
+    session.add(closed)
+    await session.delete(open_row)
+    await session.flush()
+    return closed

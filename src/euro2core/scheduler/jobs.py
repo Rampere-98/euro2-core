@@ -10,7 +10,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from euro2core.catalog.ingest_ebay import ingest_listings
+from euro2core.catalog.ingest_ebay import close_auction, ingest_listings
 from euro2core.catalog.ingest_ecb import ingest_ecb_entries
 from euro2core.catalog.ingest_numista import ingest_numista_type
 from euro2core.catalog.reconcile import link_by_elimination
@@ -318,7 +318,7 @@ async def run_auction_close_check(
     engine: AsyncEngine, *, client_id: str, client_secret: str, user_agent: str
 ) -> SyncRun:
     client = EbayClient(client_id=client_id, client_secret=client_secret, user_agent=user_agent)
-    stats: dict[str, Any] = {"checked": 0, "sold": 0, "unsold": 0, "still_open": 0}
+    stats: dict[str, Any] = {"checked": 0, "sold": 0, "unsold": 0, "gone": 0, "still_open": 0}
 
     async def body(
         sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
@@ -334,18 +334,34 @@ async def run_auction_close_check(
             ).all()
             ids = [(o.id, o.listing_id, o.marketplace) for o in ended]
         for obs_id, listing_id, marketplace in ids:
-            item = await client.get_item(listing_id, marketplace=marketplace)
             stats["checked"] += 1
-            sale = closed_auction_from_item(item, marketplace)
+            try:
+                item = await client.get_item(listing_id, marketplace=marketplace)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code not in (404, 410):
+                    raise
+                item = None  # eBay no longer serves ended items after a while
+            sale = closed_auction_from_item(item, marketplace) if item else None
             async with sessions() as session:
-                if sale is not None:
-                    await ingest_listings(session, [sale])
-                    stats["sold"] += 1
-                else:
-                    stats["unsold"] += 1
                 open_row = await session.get(MarketObservation, obs_id)
-                if open_row is not None:
-                    await session.delete(open_row)  # a bid on a live auction is not a price signal
+                if open_row is None:
+                    continue
+                if item is None:
+                    stats["gone"] += 1
+                    await session.delete(open_row)
+                elif sale is None:
+                    if (
+                        item.get("itemEndDate")
+                        and closed_auction_from_item({**item, "bidCount": 1}, marketplace) is None
+                    ):
+                        stats["still_open"] += 1  # end date moved into the future
+                        await session.commit()
+                        continue
+                    stats["unsold"] += 1
+                    await session.delete(open_row)
+                else:
+                    await close_auction(session, open_row, sale)
+                    stats["sold"] += 1
                 await session.commit()
 
     return await _run_job(engine, "auction_close_check", body, stats)

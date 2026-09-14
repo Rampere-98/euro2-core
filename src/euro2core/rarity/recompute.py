@@ -9,7 +9,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.domain.enums import Finish, ObservationKind
-from euro2core.domain.models import CoinIssue, MarketObservation, PriceEstimate, RarityScore
+from euro2core.domain.models import (
+    CoinIssue,
+    CoinType,
+    MarketObservation,
+    PriceEstimate,
+    RarityScore,
+)
 from euro2core.pricing.estimator import GLOBAL_REGION
 from euro2core.rarity.scorer import MarketSignals, score
 
@@ -22,10 +28,12 @@ async def recompute_all_rarity(session: AsyncSession) -> dict[str, int]:
     issues = (await session.scalars(select(CoinIssue))).all()
     listings = await _active_listings(session, now)
     sale_medians = await _sale_medians(session)
+    covered = await _searched_country_years(session)
+    country_of = dict((await session.execute(select(CoinType.id, CoinType.country_code))).all())
     per_million = {
         i.id: listings.get(i.id, 0) / (i.mintage / 1_000_000)
         for i in issues
-        if i.mintage and i.mintage > 0
+        if i.mintage and i.mintage > 0 and (country_of.get(i.type_id), i.year) in covered
     }
     with_supply = [v for v in per_million.values() if v > 0]
     baseline = statistics.median(with_supply) if with_supply else None
@@ -40,7 +48,7 @@ async def recompute_all_rarity(session: AsyncSession) -> dict[str, int]:
         result = score(
             issue.mintage,
             MarketSignals(
-                active_listings_per_million=per_million[issue.id] if baseline else None,
+                active_listings_per_million=per_million.get(issue.id) if baseline else None,
                 median_sale_price=sale_medians.get(issue.id),
                 catalog_median_listings_per_million=baseline,
             ),
@@ -86,6 +94,18 @@ def _mintage_bounds_by_finish(issues) -> dict[Finish, tuple[int, int]]:
         if common > rare:
             bounds[finish] = (rare, common)
     return bounds
+
+
+async def _searched_country_years(session: AsyncSession) -> set[tuple[str, int]]:
+    """(country, year) pairs with at least one observation: zero listings there is a signal;
+    zero listings elsewhere only means the market job has not looked yet."""
+    rows = await session.execute(
+        select(CoinType.country_code, CoinIssue.year)
+        .join(CoinIssue, CoinIssue.type_id == CoinType.id)
+        .join(MarketObservation, MarketObservation.issue_id == CoinIssue.id)
+        .distinct()
+    )
+    return {(c, y) for c, y in rows.all()}
 
 
 async def _active_listings(session: AsyncSession, now: datetime) -> dict[uuid.UUID, int]:

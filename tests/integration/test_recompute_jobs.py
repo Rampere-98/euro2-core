@@ -192,9 +192,7 @@ async def test_estimates_disappear_when_their_observations_age_out(engine, sessi
     await run_recompute_prices(engine)
     async with async_sessionmaker(engine)() as s:
         assert len((await s.scalars(select(PriceEstimate))).all()) > 0
-        await s.execute(
-            update(MarketObservation).values(observed_at=NOW - timedelta(days=400))
-        )
+        await s.execute(update(MarketObservation).values(observed_at=NOW - timedelta(days=400)))
         await s.commit()
 
     await run_recompute_prices(engine)
@@ -202,3 +200,23 @@ async def test_estimates_disappear_when_their_observations_age_out(engine, sessi
     async with async_sessionmaker(engine)() as s:
         assert (await s.scalars(select(PriceEstimate))).all() == []
         assert issues["rare"].id is not None
+
+
+async def test_availability_is_unknown_where_the_market_was_never_searched(engine, session):
+    issues = await _seed(session)
+    never_searched_type = CoinType(kind=CoinKind.COMMEMORATIVE, country_code="VA", year=2007)
+    session.add(never_searched_type)
+    await session.flush()
+    never_searched = CoinIssue(
+        type_id=never_searched_type.id, year=2007, mint_mark="R", finish=Finish.BU, mintage=85_000
+    )
+    session.add(never_searched)
+    await session.commit()
+
+    await run_recompute_rarity(engine)
+
+    async with async_sessionmaker(engine)() as s:
+        scores = {r.issue_id: r for r in (await s.scalars(select(RarityScore))).all()}
+    assert scores[issues["common"].id].components["availability"] is not None
+    # zero listings for a coin nobody looked for is missing data, not scarcity
+    assert scores[never_searched.id].components["availability"] is None

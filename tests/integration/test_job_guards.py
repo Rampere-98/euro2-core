@@ -67,7 +67,9 @@ async def test_orphaned_running_run_is_closed_and_its_cursor_resumed(engine, tmp
     assert run.stats["issuers_skipped"] == ["germany"]
     async with async_sessionmaker(engine)() as s:
         orphan = (
-            await s.scalars(select(SyncRun).where(SyncRun.id != run.id, SyncRun.job == "numista_catalog"))
+            await s.scalars(
+                select(SyncRun).where(SyncRun.id != run.id, SyncRun.job == "numista_catalog")
+            )
         ).one()
         assert orphan.status == SyncStatus.FAILED
         assert orphan.finished_at is not None

@@ -181,3 +181,54 @@ async def test_auction_close_check_drops_unsold_auctions(engine, catalog):
     assert run.stats["unsold"] == 1
     async with async_sessionmaker(engine)() as s:
         assert (await s.scalars(select(MarketObservation))).all() == []
+
+
+@respx.mock
+async def test_gone_auction_does_not_block_the_queue(engine, catalog):
+    _token()
+    second = {**AUCTION, "itemId": "v1|201|0", "itemWebUrl": "https://www.ebay.de/itm/201"}
+    respx.get(f"{BROWSE_BASE}/item_summary/search").mock(
+        return_value=httpx.Response(200, json={"total": 2, "itemSummaries": [AUCTION, second]})
+    )
+    await run_ebay_market(
+        engine, client_id="a", client_secret="b", user_agent="t", marketplaces=["EBAY_DE"]
+    )
+    respx.get(f"{BROWSE_BASE}/item/v1%7C200%7C0").mock(return_value=httpx.Response(404))
+    respx.get(f"{BROWSE_BASE}/item/v1%7C201%7C0").mock(
+        return_value=httpx.Response(200, json={**second, "bidCount": 3})
+    )
+
+    run = await run_auction_close_check(engine, client_id="a", client_secret="b", user_agent="t")
+
+    assert run.status == SyncStatus.SUCCEEDED, run.error
+    assert run.stats == {"checked": 2, "sold": 1, "unsold": 0, "gone": 1, "still_open": 0}
+    async with async_sessionmaker(engine)() as s:
+        rows = (await s.scalars(select(MarketObservation))).all()
+    assert [(r.listing_id, r.observation_kind) for r in rows] == [
+        ("v1|201|0", ObservationKind.AUCTION_CLOSED)
+    ]
+
+
+@respx.mock
+async def test_closed_sale_inherits_issue_and_grade_from_the_open_auction(engine, catalog):
+    _token()
+    respx.get(f"{BROWSE_BASE}/item_summary/search").mock(
+        return_value=httpx.Response(200, json={"total": 1, "itemSummaries": [AUCTION]})
+    )
+    await run_ebay_market(
+        engine, client_id="a", client_secret="b", user_agent="t", marketplaces=["EBAY_DE"]
+    )
+    async with async_sessionmaker(engine)() as s:
+        open_row = (await s.scalars(select(MarketObservation))).one()
+        open_issue, open_conf = open_row.issue_id, open_row.match_confidence
+    # eBay now returns a title the matcher could not place at all
+    respx.get(f"{BROWSE_BASE}/item/v1%7C200%7C0").mock(
+        return_value=httpx.Response(200, json={**AUCTION, "title": "???", "bidCount": 3})
+    )
+    run = await run_auction_close_check(engine, client_id="a", client_secret="b", user_agent="t")
+    assert run.stats["sold"] == 1
+    async with async_sessionmaker(engine)() as s:
+        sale = (await s.scalars(select(MarketObservation))).one()
+    assert sale.observation_kind == ObservationKind.AUCTION_CLOSED
+    assert sale.issue_id == open_issue
+    assert sale.match_confidence == open_conf

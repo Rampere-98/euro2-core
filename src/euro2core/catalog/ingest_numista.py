@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.catalog.claims import record_claim, resolve_field
+from euro2core.catalog.issues import drop_unreferenced_placeholders
 from euro2core.catalog.seed import get_source
 from euro2core.catalog.translations import upsert_translation
 from euro2core.domain.enums import CoinKind, Finish, ImageSide, VerificationStatus
@@ -102,6 +103,8 @@ async def ingest_numista_type(
         created = await _upsert_issue(session, coin_type, issue, source, ntype.url)
         result.issues_created += int(created)
 
+    if issues:
+        await drop_unreferenced_placeholders(session, coin_type)
     if fetcher is not None:
         await _store_pictures(session, coin_type, ntype, fetcher)
     await session.flush()

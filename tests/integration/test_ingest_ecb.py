@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -183,3 +184,45 @@ async def test_image_download_failure_does_not_abort_the_ingest(session, entries
     assert stats.types_created == 6
     assert stats.images_failed == 6
     assert await _count(session, CoinImage) == 0
+
+
+async def test_ecb_only_types_get_a_placeholder_issue_that_numista_replaces(session, entries_2004):
+    from euro2core.catalog.ingest_numista import ingest_numista_type
+    from euro2core.domain.models import CoinIssue
+    from euro2core.sources.numista.parser import parse_issue, parse_type
+
+    await ensure_reference_data(session)
+    await ingest_ecb_entries(session, entries_2004, fetcher=None)
+    await session.commit()
+    issues = (await session.scalars(select(CoinIssue))).all()
+    assert len(issues) == 6  # one loose circulation issue per emission, so prices can attach
+    assert all(i.mint_mark == "" and i.numista_issue_id is None for i in issues)
+
+    # Numista knows the Vatican 2004 coin as a single Rome-mint issue: the placeholder is reused
+    vatican = next(
+        t for t in (await session.scalars(select(CoinType))).all() if t.country_code == "VA"
+    )
+    numista_type = parse_type(
+        {
+            **json.loads((FIXTURES.parent / "numista" / "type_5082.json").read_text("utf-8")),
+            "id": 5080,
+            "title": "2 Euros - John Paul II (State anniversary)",
+            "min_year": 2004,
+            "max_year": 2004,
+            "commemorated_topic": "75th anniversary of the Vatican City State",
+        }
+    )
+    await ingest_numista_type(
+        session,
+        numista_type,
+        [parse_issue({"id": 26000, "year": 2004, "mint_letter": "R", "mintage": 85_000})],
+        translations=[],
+        fetcher=None,
+    )
+    await session.commit()
+    vatican_issues = (
+        await session.scalars(select(CoinIssue).where(CoinIssue.type_id == vatican.id))
+    ).all()
+    assert [(i.mint_mark, i.numista_issue_id, i.mintage) for i in vatican_issues] == [
+        ("R", 26000, 85_000)
+    ]
