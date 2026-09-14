@@ -59,6 +59,40 @@ def test_joint_issue_expands_to_one_entry_per_country(entries_2007):
     assert all(len(e.image_urls) == 1 for e in joint)
 
 
+def test_joint_issue_without_national_images_expands_to_all_member_states_of_that_year():
+    entries = parse_commemorative_page(
+        (FIXTURES / "comm_2022.en.html").read_text("utf-8"), year=2022
+    )
+    joint = [e for e in entries if e.joint_issue_group is not None]
+    assert len(joint) == 19  # euro area in 2022, micro-states excluded, Croatia not yet
+    assert {e.country_code for e in joint} >= {"DE", "ES", "LT", "LV", "EE"}
+    assert "HR" not in {e.country_code for e in joint}
+    assert {e.joint_issue_group for e in joint} == {"2022-35-years-of-the-erasmus-programme"}
+    # each country gets its own national photo plus the shared Erasmus design
+    assert all(any("erasmus" in u for u in e.image_urls) for e in joint)
+    spain = next(e for e in joint if e.country_code == "ES")
+    assert any(u.endswith("/Spain.jpg") for u in spain.image_urls)
+    assert len(entries) == 19 + 30
+
+
+def test_joint_issue_with_two_images_for_one_country_yields_one_entry():
+    html = """
+    <div class="box"><div class="coins">
+      <picture class="coin-cropper"><img src="comm_2009/joint_comm_2009_Luxembourg.jpg"></picture>
+      <picture class="coin-cropper"><img src="comm_2009/joint_comm_2009_Luxembourg_Face.jpg"></picture>
+      <picture class="coin-cropper"><img src="comm_2009/joint_comm_2009_Nederland.jpg"></picture>
+    </div><div class="content-box"><h3>Euro area countries</h3><div>
+      <p><strong>Feature:</strong> 10 years of EMU</p><p><strong>Description:</strong> x</p>
+      <p><strong>Issuing volume:</strong> varies</p><p><strong>Issuing date:</strong> Jan 2009</p>
+    </div></div></div>"""
+    entries = parse_commemorative_page(html, year=2009)
+    images = {e.country_code: len(e.image_urls) for e in entries}
+    assert len(entries) == 16  # euro area members in 2009
+    assert images["LU"] == 2
+    assert images["NL"] == 1
+    assert images["DE"] == 0  # participates, but the ECB page shows no photo
+
+
 def test_non_joint_entries_on_2007_page_are_kept(entries_2007):
     national = [e for e in entries_2007 if e.joint_issue_group is None]
     assert [e.country_code for e in national] == ["FI", "SM", "VA", "MC", "PT", "DE", "LU"]
@@ -77,6 +111,8 @@ def test_ecb_ref_is_stable_and_unique_within_page(entries_2024):
         ("Vatican", "VA"),
         ("Netherlands", "NL"),
         ("The Netherlands", "NL"),
+        ("Nederland", "NL"),
+        ("Vatican City State", "VA"),
         ("San Marino", "SM"),
         ("Germany", "DE"),
     ],

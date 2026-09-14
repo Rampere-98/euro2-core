@@ -3,9 +3,11 @@
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from urllib.parse import urljoin
+from urllib.parse import unquote, urljoin
 
 from selectolax.lexbor import LexborHTMLParser
+
+from euro2core.domain.eurozone import member_states
 
 ECB_COMM_BASE = "https://www.ecb.europa.eu/euro/coins/comm/html/"
 
@@ -30,6 +32,7 @@ COUNTRY_CODES: dict[str, str] = {
     "monaco": "MC",
     "netherlands": "NL",
     "the netherlands": "NL",
+    "nederland": "NL",
     "portugal": "PT",
     "san marino": "SM",
     "slovakia": "SK",
@@ -37,6 +40,7 @@ COUNTRY_CODES: dict[str, str] = {
     "spain": "ES",
     "vatican": "VA",
     "vatican city": "VA",
+    "vatican city state": "VA",
 }
 
 JOINT_ISSUE_HEADING = "euro area countries"
@@ -49,7 +53,6 @@ _LABEL_RE = re.compile(
     re.DOTALL | re.IGNORECASE,
 )
 _MINTAGE_RE = re.compile(r"\d[\d.,\s ]*\d|\d")
-_JOINT_IMAGE_RE = re.compile(r"joint_comm_\d{4}_(?P<country>[A-Za-z ]+)\.(?:jpg|jpeg|png|webp)$")
 _SLUG_KEEP = re.compile(r"[^a-z0-9]+")
 
 
@@ -150,14 +153,37 @@ def _entry(
 def _expand_joint_issue(year: int, fields: dict[str, str], images: list[str]) -> list[EcbEntry]:
     group = f"{year}-{slugify(fields['feature'], max_words=6)}"
     group = _JOINT_GROUP_ALIASES.get(group, group)
-    entries = []
+    # Every member state of that year takes part (micro-states never join joint
+    # issues); the ECB page may still miss or add a national photo, so union both.
+    by_country: dict[str, list[str]] = {c.code: [] for c in member_states(year)}
+    shared: list[str] = []
     for url in images:
-        match = _JOINT_IMAGE_RE.search(url)
-        if not match:
-            continue
-        name = match.group("country").replace("_", " ")
-        entries.append(_entry(year, country_code_for(name), name, fields, [url], group))
-    return entries
+        code = country_from_image_url(url)
+        if code is None:
+            shared.append(url)
+        else:
+            by_country.setdefault(code, []).append(url)
+    names = {c.code: c.name for c in member_states(year, include_micro_states=True)}
+    return [
+        _entry(year, code, names.get(code, code), fields, urls + shared, group)
+        for code, urls in by_country.items()
+    ]
+
+
+_COUNTRY_NAMES_BY_LENGTH = sorted(COUNTRY_CODES, key=len, reverse=True)
+
+
+def country_from_image_url(url: str) -> str | None:
+    """Infer the issuing country from an ECB image filename, or None for shared images."""
+    stem = unquote(url.rsplit("/", 1)[-1]).rsplit(".", 1)[0]
+    stem = re.sub(r"^joint_comm_\d{4}_", "", stem, flags=re.IGNORECASE)
+    stem = re.sub(r"[_\-]+", " ", stem)
+    stem = re.sub(r"\d+x\d+|\d+|\bface\b", " ", stem, flags=re.IGNORECASE)
+    stem = _clean(stem).casefold()
+    for name in _COUNTRY_NAMES_BY_LENGTH:
+        if stem == name or stem.startswith(name + " "):
+            return COUNTRY_CODES[name]
+    return None
 
 
 # Short, human-readable group ids for well-known joint issues
