@@ -92,6 +92,7 @@ async def run_ecb_discover(
     stats: dict[str, Any] = {
         "years": [],
         "years_missing": [],
+        "years_empty": [],
         "types_created": 0,
         "types_seen": 0,
         "claims_added": 0,
@@ -109,6 +110,11 @@ async def run_ecb_discover(
                     log.info("ECB page for %s not published yet", year)
                     continue
                 raise
+            if not entries:
+                # a published year with zero coins means the page layout changed, not the catalog
+                stats["years_empty"].append(year)
+                log.warning("ECB %s parsed to zero entries; parser may need updating", year)
+                continue
             async with sessions() as session:
                 year_stats = await ingest_ecb_entries(session, entries, fetcher)
                 await session.commit()

@@ -176,6 +176,26 @@ eBay JSON). Consensus resolver and price estimator with synthetic cases. Listing
 against a labeled set of ~100 real eBay titles with measured precision. Integration tests
 against a real PostgreSQL from docker-compose.
 
+## Implementation notes (post-design, 2026-09-14)
+
+Deviations from the design above, all driven by what the real sources do:
+
+- `coin_issue.year` was added to the unique key: circulation types span years.
+- `coin_type.mintage_total` holds the ECB total; per-variant mintage stays on issues.
+- `coin_image.local_path`/`sha256` are nullable: Numista photos are blocked for automated
+  clients and are stored as references only.
+- `observation_kind` gained `auction_open`; `market_observation.ends_at` drives the hourly
+  auction close check. Open bids never count as prices.
+- Cross-source reconciliation (`catalog/reconcile.py`) merges Numista types into ECB
+  emissions by uniqueness per country/year when fuzzy matching fails; coloured/hologram
+  editions remain standalone and listings only match them when the title says so.
+- Rarity mintage bounds are calibrated per finish class (1st/99th percentiles), stored in
+  `components.mintage_bounds`.
+- Joint issues: participants are the euro area members of that year unioned with countries
+  that have a national photo on the ECB page.
+- Numista enforces a call quota (~2,000/day); jobs keep a cursor and the scheduler retries
+  failed runs after one hour.
+
 ## Stress cases
 
 1. Contradicting sources → `fact_claim` + authority + visible conflict.

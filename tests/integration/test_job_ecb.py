@@ -51,6 +51,27 @@ async def test_missing_future_year_page_is_skipped_not_fatal(engine, tmp_path):
 
 
 @respx.mock
+async def test_restructured_page_is_flagged_instead_of_silently_emptying_the_year(engine, tmp_path):
+    respx.get(f"{ECB}comm_2004.en.html").mock(
+        side_effect=[
+            httpx.Response(200, text=_page(2004)),
+            httpx.Response(200, text="<html><body><h1>New layout</h1></body></html>"),
+        ]
+    )
+    respx.get(url__regex=r".*\.jpg$").mock(return_value=httpx.Response(503))
+    first = await run_ecb_discover(engine, data_dir=tmp_path, years=[2004], user_agent="t")
+    assert first.stats["types_created"] == 6
+
+    # the cache must not mask the change: a fresh body is fetched because the ETag differs
+    second = await run_ecb_discover(engine, data_dir=tmp_path, years=[2004], user_agent="t")
+
+    assert second.status == SyncStatus.SUCCEEDED
+    assert second.stats["years_empty"] == [2004]
+    async with engine.connect() as conn:
+        assert (await conn.execute(select(func.count()).select_from(CoinType))).scalar_one() == 6
+
+
+@respx.mock
 async def test_unexpected_failure_marks_the_run_failed_and_keeps_earlier_years(engine, tmp_path):
     respx.get(f"{ECB}comm_2004.en.html").mock(return_value=httpx.Response(200, text=_page(2004)))
     respx.get(f"{ECB}comm_2007.en.html").mock(side_effect=httpx.ConnectError("boom"))

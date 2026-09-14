@@ -33,16 +33,37 @@ cp .env.example .env        # fill in API keys
 docker compose up -d        # PostgreSQL 16 + pgvector
 uv sync
 uv run euro2 db upgrade
-uv run euro2 sync ecb       # official commemorative registry
-uv run euro2 sync numista   # variants, mintages, translations, images
-uv run euro2 sync ebay      # market observations
+uv run euro2 sync ecb       # official commemorative registry (2004 -> today)
+uv run euro2 sync numista   # variants, mintages, translations, photo references
+uv run euro2 reconcile      # merge records two sources created for the same coin
+uv run euro2 sync ebay      # asking prices and live auctions (needs eBay keys)
+uv run euro2 sync auctions  # ended auctions -> realized sales
 uv run euro2 recompute prices
 uv run euro2 recompute rarity
-uv run euro2 serve          # API + scheduler on http://localhost:8000
+uv run euro2 serve          # API (docs at /docs) + scheduler on http://localhost:8000
 ```
 
 If Windows App Control blocks the generated `euro2.exe` launcher (error 4551), use
 `uv run python -m euro2core <command>` instead — same CLI.
+
+Every job records a `sync_run` (stats, error, resumable cursor) and can be triggered from the
+API with `POST /sync/{job}`. `serve` runs them on their cadence: ECB daily, Numista weekly,
+eBay market every 72h (active coins every 6h), auction checks hourly, prices and rarity daily.
+A failed run keeps its cursor and is retried an hour later.
+
+## Things learned from the real sources
+
+- **Numista quota**: the API returns 429 after roughly 2,000 calls; the sync stops, keeps its
+  cursor and resumes on the next run. Responses are cached for 7 days, so retries are cheap.
+- **Numista photos** sit behind bot protection (403 for any automated client). They are kept
+  as attributed references (URL, author, license) with no local copy; ECB photos download fine.
+- **Cross-source naming**: about 20% of Numista commemoratives do not fuzzy-match the ECB
+  title ("Nordrhein-Westfalen" vs "North Rhine-Westphalia"). `reconcile` settles them by
+  uniqueness per country and year; coloured and hologram editions stay separate entries.
+- **Rarity per finish class**: proofs and BU sets always have tiny mintages, so the mintage
+  scale is calibrated against each finish class's own distribution.
+- **Source data errors happen**: mintages written as "30 million", an issue dated year 0, a
+  joint-issue page missing a country's photo. Each has a test and a defined behaviour.
 
 ## Tests
 
