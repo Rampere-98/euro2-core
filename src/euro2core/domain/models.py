@@ -169,6 +169,8 @@ class MarketObservation(Base):
     match_confidence: Mapped[float] = mapped_column(Float, nullable=False)
     is_outlier: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Auction end; lets auction_close_check know when to ask the marketplace for the result
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         UniqueConstraint(

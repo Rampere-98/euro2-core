@@ -56,6 +56,7 @@ async def ingest_listings(
                     title_raw=listing.title,
                     match_confidence=match.confidence,
                     observed_at=listing.observed_at,
+                    ends_at=listing.end_date,
                 )
             )
             result.stored += 1
@@ -65,6 +66,7 @@ async def ingest_listings(
             row.grade = match.grade
             row.match_confidence = match.confidence
             row.observed_at = listing.observed_at
+            row.ends_at = listing.end_date
             row.title_raw = listing.title
             result.updated += 1
     await session.flush()

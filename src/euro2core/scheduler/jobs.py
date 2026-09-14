@@ -1,7 +1,7 @@
 import logging
 import traceback
 from collections.abc import Awaitable, Callable, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -9,14 +9,22 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from euro2core.catalog.ingest_ebay import ingest_listings
 from euro2core.catalog.ingest_ecb import ingest_ecb_entries
 from euro2core.catalog.ingest_numista import ingest_numista_type
 from euro2core.catalog.seed import ensure_reference_data
-from euro2core.domain.enums import SyncStatus
-from euro2core.domain.models import SyncRun
+from euro2core.domain.enums import ObservationKind, SyncStatus
+from euro2core.domain.models import CoinIssue, CoinType, MarketObservation, SyncRun
 from euro2core.images.fetcher import ImageFetcher
 from euro2core.pricing.recompute import issues_with_observations, recompute_issue_prices, summarize
 from euro2core.rarity.recompute import recompute_all_rarity
+from euro2core.sources.ebay.client import EbayClient
+from euro2core.sources.ebay.parser import (
+    MARKETPLACES,
+    closed_auction_from_item,
+    listing_from_summary,
+)
+from euro2core.sources.ebay.queries import search_query
 from euro2core.sources.ecb.source import ECB_SOURCE_CODE, EcbSource
 from euro2core.sources.http_cache import HttpCache
 from euro2core.sources.numista.client import NumistaClient
@@ -147,6 +155,120 @@ async def run_recompute_rarity(engine: AsyncEngine) -> SyncRun:
             await session.commit()
 
     return await _run_job(engine, "recompute_rarity", body, stats)
+
+
+async def run_ebay_market(
+    engine: AsyncEngine,
+    *,
+    client_id: str,
+    client_secret: str,
+    user_agent: str,
+    marketplaces: Sequence[str] | None = None,
+    daily_budget: int | None = None,
+    hot_days: int | None = None,
+) -> SyncRun:
+    """Search every (country, year) on every marketplace and store matched listings.
+
+    With hot_days set, only country/years that had an observation recently are refreshed.
+    """
+    client = EbayClient(
+        client_id=client_id,
+        client_secret=client_secret,
+        user_agent=user_agent,
+        **({"daily_budget": daily_budget} if daily_budget is not None else {}),
+    )
+    markets = list(marketplaces) if marketplaces is not None else list(MARKETPLACES)
+    stats: dict[str, Any] = {
+        "queries": 0,
+        "listings_seen": 0,
+        "listings_stored": 0,
+        "listings_updated": 0,
+        "listings_discarded": 0,
+    }
+
+    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+        async with sessions() as session:
+            targets = await _market_targets(session, hot_days)
+        done = list(cursor.get("done", []))
+        for country, year in targets:
+            for marketplace in markets:
+                key = f"{country}/{year}/{marketplace}"
+                if key in done:
+                    continue
+                summaries = await client.search(
+                    search_query(country, year, marketplace), marketplace=marketplace
+                )
+                stats["queries"] += 1
+                listings = [
+                    listing
+                    for s in summaries
+                    if (listing := listing_from_summary(s, marketplace)) is not None
+                ]
+                stats["listings_seen"] += len(summaries)
+                async with sessions() as session:
+                    result = await ingest_listings(session, listings)
+                    await session.commit()
+                stats["listings_stored"] += result.stored
+                stats["listings_updated"] += result.updated
+                stats["listings_discarded"] += result.discarded
+                done.append(key)
+                cursor["done"] = list(done)
+
+    job = "ebay_hot" if hot_days else "ebay_market"
+    return await _run_job(engine, job, body, stats)
+
+
+async def _market_targets(session: AsyncSession, hot_days: int | None) -> list[tuple[str, int]]:
+    """Distinct (country, year) pairs that have issues; hot mode keeps only recently active ones."""
+    stmt = (
+        select(CoinType.country_code, CoinIssue.year)
+        .join(CoinIssue, CoinIssue.type_id == CoinType.id)
+        .distinct()
+        .order_by(CoinIssue.year.desc(), CoinType.country_code)
+    )
+    if hot_days:
+        recent = (
+            select(CoinIssue.type_id)
+            .join(MarketObservation, MarketObservation.issue_id == CoinIssue.id)
+            .where(MarketObservation.observed_at >= datetime.now(UTC) - timedelta(days=hot_days))
+        )
+        stmt = stmt.where(CoinType.id.in_(recent))
+    return [(c, y) for c, y in (await session.execute(stmt)).all()]
+
+
+async def run_auction_close_check(
+    engine: AsyncEngine, *, client_id: str, client_secret: str, user_agent: str
+) -> SyncRun:
+    client = EbayClient(client_id=client_id, client_secret=client_secret, user_agent=user_agent)
+    stats: dict[str, Any] = {"checked": 0, "sold": 0, "unsold": 0, "still_open": 0}
+
+    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+        async with sessions() as session:
+            ended = (
+                await session.scalars(
+                    select(MarketObservation).where(
+                        MarketObservation.observation_kind == ObservationKind.AUCTION_OPEN,
+                        MarketObservation.ends_at <= datetime.now(UTC),
+                    )
+                )
+            ).all()
+            ids = [(o.id, o.listing_id, o.marketplace) for o in ended]
+        for obs_id, listing_id, marketplace in ids:
+            item = await client.get_item(listing_id, marketplace=marketplace)
+            stats["checked"] += 1
+            sale = closed_auction_from_item(item, marketplace)
+            async with sessions() as session:
+                if sale is not None:
+                    await ingest_listings(session, [sale])
+                    stats["sold"] += 1
+                else:
+                    stats["unsold"] += 1
+                open_row = await session.get(MarketObservation, obs_id)
+                if open_row is not None:
+                    await session.delete(open_row)  # a bid on a live auction is not a price signal
+                await session.commit()
+
+    return await _run_job(engine, "auction_close_check", body, stats)
 
 
 async def run_numista_catalog(

@@ -16,6 +16,7 @@ from euro2core.scheduler import jobs
 log = logging.getLogger(__name__)
 
 STARTUP_DELAY = timedelta(seconds=30)
+RETRY_DELAY = timedelta(hours=1)  # quota errors (429) usually clear within the hour
 
 JobFactory = Callable[[AsyncEngine, Settings], Awaitable[SyncRun]]
 
@@ -46,10 +47,45 @@ async def _rarity(engine: AsyncEngine, settings: Settings) -> SyncRun:
     return await jobs.run_recompute_rarity(engine)
 
 
+def _ebay_credentials(settings: Settings, job: str) -> dict[str, str] | None:
+    if not settings.ebay_client_id or not settings.ebay_client_secret:
+        log.warning("%s skipped: EBAY_CLIENT_ID/EBAY_CLIENT_SECRET not set", job)
+        return None
+    return {
+        "client_id": settings.ebay_client_id,
+        "client_secret": settings.ebay_client_secret,
+        "user_agent": settings.user_agent,
+    }
+
+
+async def _ebay_market(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    creds = _ebay_credentials(settings, "ebay_market")
+    if creds is None:
+        return SyncRun(job="ebay_market", status=SyncStatus.FAILED, error="no ebay keys")
+    return await jobs.run_ebay_market(engine, **creds)
+
+
+async def _ebay_hot(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    creds = _ebay_credentials(settings, "ebay_hot")
+    if creds is None:
+        return SyncRun(job="ebay_hot", status=SyncStatus.FAILED, error="no ebay keys")
+    return await jobs.run_ebay_market(engine, hot_days=30, **creds)
+
+
+async def _auctions(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    creds = _ebay_credentials(settings, "auction_close_check")
+    if creds is None:
+        return SyncRun(job="auction_close_check", status=SyncStatus.FAILED, error="no ebay keys")
+    return await jobs.run_auction_close_check(engine, **creds)
+
+
 # (job id, interval, runner)
 JOB_SPECS: tuple[tuple[str, timedelta, JobFactory], ...] = (
     ("ecb_discover", timedelta(hours=24), _ecb),
     ("numista_catalog", timedelta(days=7), _numista),
+    ("ebay_market", timedelta(hours=72), _ebay_market),
+    ("ebay_hot", timedelta(hours=6), _ebay_hot),
+    ("auction_close_check", timedelta(hours=1), _auctions),
     ("recompute_prices", timedelta(hours=24), _prices),
     ("recompute_rarity", timedelta(hours=24), _rarity),
 )
@@ -61,6 +97,11 @@ def plan_next_run(last_success: datetime | None, interval: timedelta, now: datet
         return now + STARTUP_DELAY
     due = last_success + interval
     return due if due > now + STARTUP_DELAY else now + STARTUP_DELAY
+
+
+def plan_after_result(status: SyncStatus, interval: timedelta, now: datetime) -> datetime:
+    """A failed run resumes from its cursor soon; a successful one waits its full cadence."""
+    return now + (RETRY_DELAY if status != SyncStatus.SUCCEEDED else interval)
 
 
 async def last_success(engine: AsyncEngine, job: str) -> datetime | None:
@@ -79,10 +120,12 @@ async def build_scheduler(engine: AsyncEngine, settings: Settings) -> AsyncIOSch
     for job_id, interval, runner in JOB_SPECS:
         next_run = plan_next_run(await last_success(engine, job_id), interval, now)
 
-        async def run(runner=runner, job_id=job_id) -> None:
+        async def run(runner=runner, job_id=job_id, interval=interval) -> None:
             log.info("scheduled job %s starting", job_id)
             result = await runner(engine, settings)
             log.info("scheduled job %s finished: %s", job_id, result.status)
+            next_run = plan_after_result(result.status, interval, datetime.now(UTC))
+            scheduler.modify_job(job_id, next_run_time=next_run)
 
         scheduler.add_job(
             run,

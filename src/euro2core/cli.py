@@ -9,6 +9,8 @@ import typer
 from euro2core.config import get_settings
 from euro2core.db import get_engine
 from euro2core.scheduler.jobs import (
+    run_auction_close_check,
+    run_ebay_market,
     run_ecb_discover,
     run_numista_catalog,
     run_recompute_prices,
@@ -83,8 +85,44 @@ def sync_numista(
 
 
 @sync_app.command("ebay")
-def sync_ebay() -> None:
-    raise typer.Exit(code=_not_implemented("sync ebay"))
+def sync_ebay(
+    marketplace: Annotated[
+        list[str] | None, typer.Option(help="EBAY_ES, EBAY_DE, ... (default: all six)")
+    ] = None,
+    hot: Annotated[
+        bool, typer.Option(help="Only country/years active in the last 30 days")
+    ] = False,
+) -> None:
+    """Collect asking prices and live auctions from eBay, matched to catalog issues."""
+    settings = get_settings()
+    _require_ebay_keys(settings)
+    run = asyncio.run(
+        run_ebay_market(
+            get_engine(),
+            client_id=settings.ebay_client_id,
+            client_secret=settings.ebay_client_secret,
+            user_agent=settings.user_agent,
+            marketplaces=marketplace or None,
+            hot_days=30 if hot else None,
+        )
+    )
+    _report_run(run)
+
+
+@sync_app.command("auctions")
+def sync_auctions() -> None:
+    """Resolve ended auctions into realized sales."""
+    settings = get_settings()
+    _require_ebay_keys(settings)
+    run = asyncio.run(
+        run_auction_close_check(
+            get_engine(),
+            client_id=settings.ebay_client_id,
+            client_secret=settings.ebay_client_secret,
+            user_agent=settings.user_agent,
+        )
+    )
+    _report_run(run)
 
 
 @recompute_app.command("prices")
@@ -121,6 +159,12 @@ def _report_run(run) -> None:
         raise typer.Exit(code=1)
 
 
-def _not_implemented(name: str) -> int:
-    typer.echo(f"{name}: not implemented yet", err=True)
-    return 2
+def _require_ebay_keys(settings) -> None:
+    if settings.ebay_client_id and settings.ebay_client_secret:
+        return
+    typer.echo(
+        "EBAY_CLIENT_ID / EBAY_CLIENT_SECRET are not set in .env. Create a production keyset at "
+        "https://developer.ebay.com (My Account > Application Keys) and try again.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
