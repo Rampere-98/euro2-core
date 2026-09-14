@@ -333,7 +333,7 @@ async def _store_picture(
         stored = await fetcher.fetch(picture.url, folder)
     except Exception as exc:
         # Numista photos sit behind bot protection; keep the attributed reference and retry later
-        log.info("photo not downloadable, kept as reference: %s (%s)", picture.url, exc)
+        log.debug("photo not downloadable, kept as reference: %s (%s)", picture.url, exc)
         return
     image.local_path = str(stored.local_path)
     image.sha256 = stored.sha256

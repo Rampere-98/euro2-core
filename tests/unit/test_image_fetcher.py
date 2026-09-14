@@ -5,7 +5,7 @@ import httpx
 import pytest
 import respx
 
-from euro2core.images.fetcher import ImageFetcher
+from euro2core.images.fetcher import HostBlocked, ImageFetcher
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 
@@ -67,3 +67,32 @@ def test_filename_is_derived_from_url_and_sanitized(fetcher):
         == "abc.123-original.jpg"
     )
     assert fetcher.filename_for("https://x/noext", "image/webp") == "noext.webp"
+
+
+@respx.mock
+async def test_host_is_skipped_after_repeated_403s(fetcher):
+    route = respx.get(url__startswith="https://blocked.example/").mock(
+        return_value=httpx.Response(403)
+    )
+    for i in range(ImageFetcher.BLOCK_AFTER):
+        with pytest.raises(httpx.HTTPStatusError):
+            await fetcher.fetch(f"https://blocked.example/{i}.jpg", folder="x")
+    with pytest.raises(HostBlocked):
+        await fetcher.fetch("https://blocked.example/another.jpg", folder="x")
+    assert route.call_count == ImageFetcher.BLOCK_AFTER
+    assert "blocked.example" in fetcher.blocked_hosts
+
+
+@respx.mock
+async def test_a_success_resets_the_403_streak(fetcher):
+    respx.get("https://mixed.example/bad.jpg").mock(return_value=httpx.Response(403))
+    respx.get("https://mixed.example/good.jpg").mock(
+        return_value=httpx.Response(200, content=PNG, headers={"Content-Type": "image/png"})
+    )
+    for _ in range(ImageFetcher.BLOCK_AFTER - 1):
+        with pytest.raises(httpx.HTTPStatusError):
+            await fetcher.fetch("https://mixed.example/bad.jpg", folder="x")
+    await fetcher.fetch("https://mixed.example/good.jpg", folder="x")
+    with pytest.raises(httpx.HTTPStatusError):
+        await fetcher.fetch("https://mixed.example/bad.jpg", folder="x")
+    assert "mixed.example" not in fetcher.blocked_hosts
