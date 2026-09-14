@@ -1,0 +1,50 @@
+[project]
+name = "euro2core"
+version = "0.1.0"
+description = "Autonomous data core for 2 euro coins: self-updating catalog, real market prices, rarity index."
+authors = [{ name = "Brebaje" }]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20.0",
+    "apscheduler<4",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "pgvector>=0.5.0",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "rapidfuzz>=3.14.6",
+    "selectolax>=0.4.11",
+    "sqlalchemy[asyncio]>=2.0.52",
+    "typer>=0.27.2",
+    "uvicorn[standard]>=0.53.0",
+]
+
+[project.scripts]
+euro2 = "euro2core.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["integration: requires a running PostgreSQL (docker compose up)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "respx>=0.23.1",
+    "ruff>=0.16.7",
+]

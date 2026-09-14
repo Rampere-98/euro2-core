@@ -1,0 +1,20 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: euro2-db
+    environment:
+      POSTGRES_USER: euro2
+      POSTGRES_PASSWORD: euro2
+      POSTGRES_DB: euro2
+    ports:
+      - "5432:5432"
+    volumes:
+      - euro2-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U euro2 -d euro2"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  euro2-pgdata:
