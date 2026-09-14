@@ -12,6 +12,7 @@ from euro2core.scheduler.jobs import (
     run_auction_close_check,
     run_ebay_market,
     run_ecb_discover,
+    run_embed_images,
     run_numista_catalog,
     run_recompute_prices,
     run_recompute_rarity,
@@ -124,6 +125,12 @@ def sync_auctions() -> None:
         )
     )
     _report_run(run)
+
+
+@recompute_app.command("embeddings")
+def recompute_embeddings() -> None:
+    """Embed catalog images with CLIP so photos can be identified (downloads the model once)."""
+    _report_run(asyncio.run(run_embed_images(get_engine())))
 
 
 @app.command("reconcile")

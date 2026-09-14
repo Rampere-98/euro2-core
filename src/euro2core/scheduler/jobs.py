@@ -31,6 +31,8 @@ from euro2core.sources.ecb.source import ECB_SOURCE_CODE, EcbSource
 from euro2core.sources.http_cache import HttpCache
 from euro2core.sources.numista.client import NumistaClient
 from euro2core.sources.numista.parser import SEARCH_ISSUERS, parse_issue, parse_type
+from euro2core.vision.embedder import get_embedder
+from euro2core.vision.index import embed_missing_images
 
 log = logging.getLogger(__name__)
 
@@ -212,6 +214,19 @@ async def run_recompute_rarity(engine: AsyncEngine) -> SyncRun:
             await session.commit()
 
     return await _run_job(engine, "recompute_rarity", body, stats)
+
+
+async def run_embed_images(engine: AsyncEngine) -> SyncRun:
+    stats: dict[str, Any] = {}
+
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
+        async with sessions() as session:
+            stats.update(await embed_missing_images(session, get_embedder()))
+            await session.commit()
+
+    return await _run_job(engine, "embed_images", body, stats)
 
 
 async def run_ebay_market(

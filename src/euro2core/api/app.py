@@ -4,7 +4,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from euro2core.api.routers import events, health, images, issues, search, sources, sync, types
+from euro2core.api.routers import (
+    events,
+    health,
+    identify,
+    images,
+    issues,
+    search,
+    sources,
+    sync,
+    types,
+)
 from euro2core.config import get_settings
 from euro2core.db import get_engine
 from euro2core.scheduler.service import build_scheduler
@@ -49,6 +59,7 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
         sources.router,
         sync.router,
         images.router,
+        identify.router,
     ):
         app.include_router(router)
     return app

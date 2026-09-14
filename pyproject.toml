@@ -12,12 +12,19 @@ dependencies = [
     "asyncpg>=0.31.0",
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
+    "numpy<2.4",
+    "open-clip-torch>=3.3.0",
+    "opencv-python-headless>=5.0.0.93",
     "pgvector>=0.5.0",
+    "pillow>=12.3.0",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
     "rapidfuzz>=3.14.6",
     "selectolax>=0.4.11",
     "sqlalchemy[asyncio]>=2.0.52",
+    "torch==2.8.0",
+    "torchvision==0.23.0",
     "typer>=0.27.2",
     "uvicorn[standard]>=0.53.0",
 ]
@@ -32,7 +39,10 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-markers = ["integration: requires a running PostgreSQL (docker compose up)"]
+markers = [
+    "integration: requires a running PostgreSQL (docker compose up)",
+    "model: loads the CLIP model (slow, downloads weights on first run)",
+]
 
 [tool.ruff]
 line-length = 100

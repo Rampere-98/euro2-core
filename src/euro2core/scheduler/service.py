@@ -47,6 +47,10 @@ async def _rarity(engine: AsyncEngine, settings: Settings) -> SyncRun:
     return await jobs.run_recompute_rarity(engine)
 
 
+async def _embed(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    return await jobs.run_embed_images(engine)
+
+
 def _ebay_credentials(settings: Settings, job: str) -> dict[str, str] | None:
     if not settings.ebay_client_id or not settings.ebay_client_secret:
         log.warning("%s skipped: EBAY_CLIENT_ID/EBAY_CLIENT_SECRET not set", job)
@@ -88,6 +92,7 @@ JOB_SPECS: tuple[tuple[str, timedelta, JobFactory], ...] = (
     ("auction_close_check", timedelta(hours=1), _auctions),
     ("recompute_prices", timedelta(hours=24), _prices),
     ("recompute_rarity", timedelta(hours=24), _rarity),
+    ("embed_images", timedelta(hours=24), _embed),
 )
 
 

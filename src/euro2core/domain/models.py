@@ -322,3 +322,26 @@ class SyncRun(Base):
     error: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (Index("ix_sync_run_job_started", "job", "started_at"),)
+
+
+class Identification(Base):
+    """One photo identification request; confirmations become training data (federated loop)."""
+
+    __tablename__ = "identification"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    created_at: Mapped[datetime] = _now()
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    image_path: Mapped[str | None] = mapped_column(Text)
+    found_circle: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    top_type_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("coin_type.id", ondelete="SET NULL")
+    )
+    top_score: Mapped[float | None] = mapped_column(Float)
+    candidates: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    confirmed_type_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("coin_type.id", ondelete="SET NULL")
+    )
+    embedding: Mapped[list[float] | None] = mapped_column(VECTOR(512))
+
+    __table_args__ = (Index("ix_identification_created", "created_at"),)
