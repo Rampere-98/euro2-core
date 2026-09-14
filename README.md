@@ -41,6 +41,9 @@ uv run euro2 recompute rarity
 uv run euro2 serve          # API + scheduler on http://localhost:8000
 ```
 
+If Windows App Control blocks the generated `euro2.exe` launcher (error 4551), use
+`uv run python -m euro2core <command>` instead — same CLI.
+
 ## Data sources
 
 | Source | Kind | Authority | Access |
