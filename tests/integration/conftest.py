@@ -3,12 +3,30 @@ import os
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from euro2core.db import create_engine
+from euro2core.db import Base, create_engine
+from euro2core.domain import models  # noqa: F401
 
 TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://euro2:euro2@localhost:5432/euro2"
 )
+
+TABLES_IN_DELETE_ORDER = [
+    "rarity_score",
+    "price_estimate",
+    "market_observation",
+    "coin_image",
+    "coin_issue",
+    "coin_type",
+    "text_translation",
+    "fact_claim",
+    "domain_event",
+    "sync_run",
+    "series",
+    "source",
+    "country",
+]
 
 
 def _db_reachable() -> bool:
@@ -38,5 +56,21 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture
 async def engine():
     engine = create_engine(TEST_DB_URL)
+    async with engine.begin() as conn:
+        missing = [t for t in Base.metadata.sorted_tables if not await _table_exists(conn, t.name)]
+        if missing:
+            pytest.skip("run `uv run python -m euro2core db upgrade` first")
+        await conn.execute(text("TRUNCATE " + ", ".join(TABLES_IN_DELETE_ORDER) + " CASCADE"))
     yield engine
     await engine.dispose()
+
+
+@pytest.fixture
+async def session(engine) -> AsyncSession:
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as s:
+        yield s
+
+
+async def _table_exists(conn, name: str) -> bool:
+    return bool((await conn.execute(text("select to_regclass(:n)"), {"n": name})).scalar())

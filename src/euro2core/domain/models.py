@@ -92,6 +92,8 @@ class CoinType(Base):
     year: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     series_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("series.id"))
     joint_issue_group: Mapped[str | None] = mapped_column(String(80))
+    # ECB total issuing volume across mints and finishes; per-variant mintage lives on issues
+    mintage_total: Mapped[int | None] = mapped_column(BigInteger)
     ecb_ref: Mapped[str | None] = mapped_column(String(120), unique=True)
     numista_type_id: Mapped[int | None] = mapped_column(Integer, unique=True)
     base_type_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("coin_type.id"))
