@@ -11,7 +11,7 @@ from euro2core.catalog.ingest_ecb import ingest_ecb_entries
 from euro2core.catalog.ingest_numista import ingest_numista_type
 from euro2core.catalog.seed import ensure_reference_data
 from euro2core.domain.enums import Finish, Grade, ObservationKind
-from euro2core.domain.models import CoinIssue, MarketObservation
+from euro2core.domain.models import CoinIssue, CoinType, MarketObservation
 from euro2core.pricing.matcher import match_listing
 from euro2core.sources.ebay.parser import Listing
 from euro2core.sources.ecb.parser import EcbEntry
@@ -102,6 +102,40 @@ async def test_lot_and_unrelated_listings_do_not_match(germany_2006):
     )
     assert await match_listing(germany_2006, "2 Euro France 2015 drapeau") is None
     assert await match_listing(germany_2006, "Moneda de 50 centimos 2006") is None
+
+
+async def test_coloured_listing_only_matches_a_coloured_edition(germany_2006):
+    session = germany_2006
+    # without a coloured edition in the catalog, a coloured listing must not price the plain coin
+    assert (
+        await match_listing(session, "2 Euro Deutschland 2006 Schleswig-Holstein A coloriert")
+        is None
+    )
+    coloured = parse_type(
+        {
+            **load("type_2169.json"),
+            "id": 555,
+            "title": '2 Euros (Bundesländer - "Schleswig-Holstein"; Coloured)',
+        }
+    )
+    await ingest_numista_type(
+        session,
+        coloured,
+        [parse_issue({"id": 5551, "year": 2006, "mint_letter": "A", "mintage": 5000})],
+        translations=[],
+        fetcher=None,
+    )
+    await session.commit()
+    m = await match_listing(session, "2 Euro Deutschland 2006 Schleswig-Holstein A coloriert")
+    assert m is not None
+    coloured_type = (
+        await session.scalars(select(CoinType).where(CoinType.numista_type_id == 555))
+    ).one()
+    assert m.type_id == coloured_type.id
+    plain = await match_listing(
+        session, "2 Euro Deutschland 2006 Schleswig-Holstein A Stempelglanz"
+    )
+    assert plain.type_id != coloured_type.id
 
 
 async def test_ingest_listings_upserts_observations_with_confidence_and_grade(germany_2006):

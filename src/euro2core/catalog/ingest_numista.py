@@ -15,6 +15,7 @@ from euro2core.images.fetcher import ImageFetcher
 from euro2core.sources.ecb.parser import EcbEntry
 from euro2core.sources.linker import LINK_THRESHOLD, link_score, match_ecb_entry
 from euro2core.sources.numista.parser import NumistaIssue, NumistaPicture, NumistaType
+from euro2core.sources.numista.variants import variant_kind
 
 log = logging.getLogger(__name__)
 
@@ -125,7 +126,8 @@ async def _attach_or_create(
     session: AsyncSession, ntype: NumistaType, result: NumistaIngestResult
 ) -> tuple[CoinType | None, NumistaIngestResult]:
     base_type_id = None
-    if ntype.kind == CoinKind.COMMEMORATIVE:
+    if ntype.kind == CoinKind.COMMEMORATIVE and variant_kind(ntype.title) is None:
+        # coloured / hologram editions are their own catalog entries, never the ECB emission
         linked = await _link_to_ecb(session, ntype)
         if linked is not None:
             linked.numista_type_id = ntype.id

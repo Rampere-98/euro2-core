@@ -104,6 +104,27 @@ GRADE: dict[Grade, tuple[str, ...]] = {
 
 CERTIFIERS = ("pcgs", "ngc", "anacs")
 
+# Colourised editions trade at a large premium and are separate catalog entries.
+COLOURED_WORDS = (
+    "coloured",
+    "colored",
+    "colorized",
+    "colourized",
+    "coloreada",
+    "coloreadas",
+    "colorada",
+    "farbig",
+    "coloriert",
+    "farbe",
+    "colorisee",
+    "colorise",
+    "couleur",
+    "colorata",
+    "colorate",
+    "gekleurd",
+    "kleur",
+)
+
 # ---------------------------------------------------------------------------
 # Lots / multi-coin listings: never a single observation.
 # ---------------------------------------------------------------------------

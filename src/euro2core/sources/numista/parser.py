@@ -88,6 +88,8 @@ EXCLUDED_OBJECT_TYPES = frozenset({"Patterns", "Fantasy coins", "Mint set tokens
 
 _TWO_EURO_TITLE = re.compile(r"^2 Euros?\b(?! Cents?)")
 _ERROR_MARKERS = re.compile(r"\b(mule|error|fehlpr[aä]gung|variante|variety)\b", re.IGNORECASE)
+# "(1st map)" / "(2nd map)" name the common-side design of a standard coin, not a commemoration
+_MAP_VARIANT = re.compile(r"\((1st|2nd)\s+map\)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -147,7 +149,7 @@ def is_two_euro(search_result: dict[str, Any]) -> bool:
 def classify_kind(title: str, object_type_name: str) -> CoinKind:
     if _ERROR_MARKERS.search(title):
         return CoinKind.ERROR
-    if object_type_name == STANDARD_CIRCULATION:
+    if object_type_name == STANDARD_CIRCULATION or _MAP_VARIANT.search(title):
         return CoinKind.CIRCULATION
     return CoinKind.COMMEMORATIVE
 

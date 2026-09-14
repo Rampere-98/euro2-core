@@ -10,6 +10,7 @@ from euro2core.domain.enums import CoinKind, Finish, Grade, Packaging
 from euro2core.domain.models import CoinIssue, CoinType, TextTranslation
 from euro2core.pricing.title_parser import ParsedTitle, parse_title
 from euro2core.sources.linker import link_score
+from euro2core.sources.numista.variants import base_title, variant_kind
 
 NO_THEME_CONFIDENCE = 0.5
 MISSING_MINT_MARK_CAP = 0.8
@@ -48,12 +49,17 @@ async def match_listing(session: AsyncSession, title: str) -> Match | None:
             )
         )
     ).all()
-    candidates = [(ct, t) for ct, t in candidates if _type_covers_year(ct, parsed.year)]
+    candidates = [
+        (ct, t)
+        for ct, t in candidates
+        if _type_covers_year(ct, parsed.year)
+        and (variant_kind(t) == "coloured") == parsed.is_coloured
+    ]
     if not candidates:
         return None
 
     if parsed.theme_text:
-        scored = [(link_score(parsed.theme_text, None, t), ct) for ct, t in candidates]
+        scored = [(link_score(parsed.theme_text, None, base_title(t)), ct) for ct, t in candidates]
         best_score, best_type = max(scored, key=lambda x: x[0])
         confidence = best_score / 100
     elif len(candidates) == 1:

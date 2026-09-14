@@ -96,6 +96,21 @@ def test_grade_inference(title, grade, sheldon, certifier):
     assert p.certified_by == certifier
 
 
+@pytest.mark.parametrize(
+    ("title", "coloured"),
+    [
+        ("2 Euro Frankreich 2014 Welt-AIDS-Tag farbig coloriert", True),
+        ("2 euros France 2015 drapeau colorisée", True),
+        ("2 euro Italia 2019 colorata", True),
+        ("2 euros Alemania 2006 Schleswig-Holstein coloreada", True),
+        ("2 Euro Netherlands 2015 EU flag coloured", True),
+        ("2 Euro Deutschland 2006 Schleswig-Holstein A", False),
+    ],
+)
+def test_coloured_editions_are_flagged(title, coloured):
+    assert parse_title(title).is_coloured is coloured
+
+
 def test_theme_words_exclude_structural_tokens():
     p = parse_title("2 Euro Alemania 2006 Schleswig-Holstein Holstentor A Stempelglanz")
     assert p.theme_text == "schleswig holstein holstentor"

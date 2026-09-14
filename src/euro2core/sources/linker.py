@@ -41,11 +41,14 @@ _BOILERPLATE = frozenset(
 _NON_WORD = re.compile(r"[^a-z0-9]+")
 
 
+STEM_LENGTH = 5  # "olympics"/"olympic", "children"/"child" compare equal
+
+
 def clean(text: str | None) -> str:
     if not text:
         return ""
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().casefold()
-    tokens = [t for t in _NON_WORD.split(ascii_text) if t and t not in _BOILERPLATE]
+    tokens = [t[:STEM_LENGTH] for t in _NON_WORD.split(ascii_text) if t and t not in _BOILERPLATE]
     return " ".join(tokens)
 
 

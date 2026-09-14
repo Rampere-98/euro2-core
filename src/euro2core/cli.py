@@ -15,6 +15,7 @@ from euro2core.scheduler.jobs import (
     run_numista_catalog,
     run_recompute_prices,
     run_recompute_rarity,
+    run_reconcile,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -123,6 +124,12 @@ def sync_auctions() -> None:
         )
     )
     _report_run(run)
+
+
+@app.command("reconcile")
+def reconcile() -> None:
+    """Merge catalog records that different sources created for the same coin."""
+    _report_run(asyncio.run(run_reconcile(get_engine())))
 
 
 @recompute_app.command("prices")

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from euro2core.catalog.ingest_ebay import ingest_listings
 from euro2core.catalog.ingest_ecb import ingest_ecb_entries
 from euro2core.catalog.ingest_numista import ingest_numista_type
+from euro2core.catalog.reconcile import link_by_elimination
 from euro2core.catalog.seed import ensure_reference_data
 from euro2core.domain.enums import ObservationKind, SyncStatus
 from euro2core.domain.models import CoinIssue, CoinType, MarketObservation, SyncRun
@@ -326,5 +327,19 @@ async def run_numista_catalog(
             done.append(issuer)
             cursor["issuers_done"] = list(done)
             stats["issuers_done"].append(issuer)
+        async with sessions() as session:
+            stats["reconcile"] = await link_by_elimination(session)
+            await session.commit()
 
     return await _run_job(engine, "numista_catalog", body, stats)
+
+
+async def run_reconcile(engine: AsyncEngine) -> SyncRun:
+    stats: dict[str, Any] = {}
+
+    async def body(sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any]) -> None:
+        async with sessions() as session:
+            stats.update(await link_by_elimination(session))
+            await session.commit()
+
+    return await _run_job(engine, "reconcile", body, stats)

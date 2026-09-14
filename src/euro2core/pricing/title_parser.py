@@ -27,6 +27,7 @@ class ParsedTitle:
     sheldon: int | None = None
     certified_by: str | None = None
     is_lot: bool = False
+    is_coloured: bool = False
     theme_text: str = ""
     matched_phrases: list[str] = field(default_factory=list)
 
@@ -48,6 +49,8 @@ def parse_title(title: str) -> ParsedTitle:
     _certification(text, parsed, consumed)
     parsed.mint_mark, marks_found = _mint_mark(text, parsed.country_code)
     parsed.is_lot = _is_lot(text, marks_found)
+    parsed.is_coloured = any(f" {w} " in text for w in V.COLOURED_WORDS)
+    consumed.extend(w for w in V.COLOURED_WORDS if f" {w} " in text)
     if parsed.sheldon is None:
         parsed.grade = _grade(text, parsed.finish, consumed)
     parsed.matched_phrases = consumed
