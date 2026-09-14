@@ -53,6 +53,10 @@ _LABEL_RE = re.compile(
     re.DOTALL | re.IGNORECASE,
 )
 _MINTAGE_RE = re.compile(r"\d[\d.,\s ]*\d|\d")
+_MILLION_RE = re.compile(
+    r"(?P<number>\d+(?:[.,]\d+)?)\s*(?:million|millions|mio|mln)\b", re.IGNORECASE
+)
+ECB_REF_MAX_SLUG = 100
 _SLUG_KEEP = re.compile(r"[^a-z0-9]+")
 
 
@@ -71,22 +75,30 @@ class EcbEntry:
 
     @property
     def ecb_ref(self) -> str:
-        return f"{self.year}/{self.country_code}/{slugify(self.feature, max_words=6)}"
+        return (
+            f"{self.year}/{self.country_code}/{slugify(self.feature, max_chars=ECB_REF_MAX_SLUG)}"
+        )
 
 
 def country_code_for(name: str) -> str:
     return COUNTRY_CODES[_clean(name).casefold()]
 
 
-def slugify(text: str, max_words: int | None = None) -> str:
+def slugify(text: str, max_words: int | None = None, max_chars: int | None = None) -> str:
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     words = [w for w in _SLUG_KEEP.split(ascii_text.casefold()) if w]
     if max_words is not None:
         words = words[:max_words]
-    return "-".join(words)
+    slug = "-".join(words)
+    if max_chars is not None and len(slug) > max_chars:
+        slug = slug[:max_chars].rsplit("-", 1)[0]
+    return slug
 
 
 def parse_mintage(raw: str) -> int | None:
+    millions = _MILLION_RE.search(raw)
+    if millions:
+        return round(float(millions.group("number").replace(",", ".")) * 1_000_000)
     match = _MINTAGE_RE.search(raw)
     if not match:
         return None
