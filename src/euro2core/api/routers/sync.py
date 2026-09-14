@@ -1,38 +1,19 @@
 import logging
-from collections.abc import Awaitable, Callable
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.api.deps import SessionDep
 from euro2core.api.schemas import Page, SyncRunOut
-from euro2core.config import Settings, get_settings
+from euro2core.config import get_settings
 from euro2core.domain.models import SyncRun
-from euro2core.scheduler import jobs
+from euro2core.scheduler.service import JOB_SPECS, JobFactory
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/sync", tags=["system"])
 
-Job = Callable[..., Awaitable[SyncRun]]
-
-
-async def _ecb(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    return await jobs.run_ecb_discover(
-        engine, data_dir=settings.data_dir, user_agent=settings.user_agent
-    )
-
-
-async def _numista(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    return await jobs.run_numista_catalog(
-        engine,
-        data_dir=settings.data_dir,
-        api_key=settings.numista_api_key,
-        user_agent=settings.user_agent,
-    )
-
-
-JOBS: dict[str, Job] = {"ecb_discover": _ecb, "numista_catalog": _numista}
+JOBS: dict[str, JobFactory] = {name: runner for name, _, runner in JOB_SPECS}
 
 
 @router.get("/runs", response_model=Page[SyncRunOut])

@@ -93,9 +93,17 @@ def recompute_rarity() -> None:
 
 
 @app.command("serve")
-def serve() -> None:
-    """Start the API and the background scheduler."""
-    raise typer.Exit(code=_not_implemented("serve"))
+def serve(
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    scheduler: Annotated[bool, typer.Option(help="Run source syncs on their cadence")] = True,
+) -> None:
+    """Start the API (docs at /docs) and the background scheduler."""
+    import uvicorn
+
+    from euro2core.api.app import create_app
+
+    uvicorn.run(create_app(scheduler=scheduler), host=host, port=port, log_level="info")
 
 
 def _report_run(run) -> None:
