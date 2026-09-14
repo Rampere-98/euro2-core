@@ -36,8 +36,11 @@ def test_all_domain_tables_are_declared():
     assert set(Base.metadata.tables) >= EXPECTED_TABLES
 
 
-def test_coin_issue_is_unique_per_type_mint_finish_packaging():
-    assert frozenset({"type_id", "mint_mark", "finish", "packaging"}) in _unique_sets("coin_issue")
+def test_coin_issue_is_unique_per_type_year_mint_finish_packaging():
+    # circulation types span many years; each year x mint x finish is its own issue
+    assert frozenset({"type_id", "year", "mint_mark", "finish", "packaging"}) in _unique_sets(
+        "coin_issue"
+    )
 
 
 def test_market_observation_is_unique_per_listing_and_kind():

@@ -21,7 +21,7 @@ async def test_type_with_five_mint_issues_round_trips(session):
     session.add(ct)
     await session.flush()
     for mark in "ADFGJ":
-        session.add(CoinIssue(type_id=ct.id, mint_mark=mark, finish=Finish.CIRCULATION))
+        session.add(CoinIssue(type_id=ct.id, year=2006, mint_mark=mark, finish=Finish.CIRCULATION))
     await session.commit()
 
     issues = (await session.scalars(select(CoinIssue).where(CoinIssue.type_id == ct.id))).all()
@@ -34,9 +34,13 @@ async def test_same_variant_twice_is_rejected_by_the_database(session):
     ct = CoinType(kind=CoinKind.CIRCULATION, country_code="DE", year=2008)
     session.add(ct)
     await session.flush()
-    session.add(CoinIssue(type_id=ct.id, mint_mark="", finish=Finish.BU, packaging=Packaging.SET))
+    session.add(
+        CoinIssue(type_id=ct.id, year=2008, mint_mark="", finish=Finish.BU, packaging=Packaging.SET)
+    )
     await session.flush()
-    session.add(CoinIssue(type_id=ct.id, mint_mark="", finish=Finish.BU, packaging=Packaging.SET))
+    session.add(
+        CoinIssue(type_id=ct.id, year=2008, mint_mark="", finish=Finish.BU, packaging=Packaging.SET)
+    )
     with pytest.raises(IntegrityError):
         await session.flush()
 

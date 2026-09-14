@@ -123,6 +123,7 @@ class CoinIssue(Base):
     type_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("coin_type.id", ondelete="CASCADE"), nullable=False
     )
+    year: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     # Empty string means "no mint mark" so the unique constraint applies (NULLs are distinct)
     mint_mark: Mapped[str] = mapped_column(String(4), default="", nullable=False)
     finish: Mapped[Finish] = mapped_column(_enum(Finish, "finish"), nullable=False)
@@ -137,8 +138,9 @@ class CoinIssue(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "type_id", "mint_mark", "finish", "packaging", name="uq_coin_issue_variant"
+            "type_id", "year", "mint_mark", "finish", "packaging", name="uq_coin_issue_variant"
         ),
+        CheckConstraint("year BETWEEN 1999 AND 2100", name="ck_coin_issue_year"),
     )
 
 
