@@ -196,6 +196,20 @@ Deviations from the design above, all driven by what the real sources do:
 - Numista enforces a call quota (~2,000/day); jobs keep a cursor and the scheduler retries
   failed runs after one hour.
 
+## Review fixes (multi-axis code review, 2026-09-14)
+
+- Price estimates whose observations aged out are deleted; a stale price is never served.
+- Same-name jobs are serialised with an in-process lock; `POST /sync/{job}` answers 409 while
+  one runs. Cursors are checkpointed after each unit; a run left RUNNING by a crash is closed
+  and its cursor resumed. The eBay daily budget counts calls spent earlier today.
+- Rarity availability is unknown (not scarcity) where the market job never searched that
+  country/year. ECB-only emissions carry a loose placeholder issue so prices can attach;
+  Numista variants supersede it.
+- Ended auctions eBay no longer serves are dropped instead of blocking the queue; a realized
+  sale inherits the issue and grade resolved while open; recorded sales never migrate.
+- `/images` refuses reference-only rows and paths outside the image store; `has_conflict`
+  uses the resolver's normalisation; search escapes SQL wildcards.
+
 ## Stress cases
 
 1. Contradicting sources → `fact_claim` + authority + visible conflict.
