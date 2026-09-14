@@ -5,7 +5,8 @@ import httpx
 import pytest
 import respx
 
-from euro2core.sources.numista.client import NUMISTA_API_BASE, NumistaClient
+from euro2core.sources.errors import SourcePaused
+from euro2core.sources.numista.client import NUMISTA_API_BASE, NumistaClient, NumistaQuotaExceeded
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "numista"
 
@@ -102,3 +103,15 @@ async def test_client_error_is_not_cached_and_raises(client):
     with pytest.raises(httpx.HTTPStatusError):
         await client.get_type(999999, lang="en")
     assert route.call_count == 2
+
+
+@respx.mock
+async def test_persistent_429_becomes_a_quota_error(client, monkeypatch):
+    async def fake_sleep(seconds: float) -> None:
+        pass
+
+    monkeypatch.setattr("euro2core.sources.numista.client.asyncio.sleep", fake_sleep)
+    respx.get(f"{NUMISTA_API_BASE}/types/2169/issues").mock(return_value=httpx.Response(429))
+    with pytest.raises(NumistaQuotaExceeded) as exc:
+        await client.get_issues(2169)
+    assert isinstance(exc.value, SourcePaused)

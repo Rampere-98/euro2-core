@@ -28,9 +28,6 @@ async def _ecb(engine: AsyncEngine, settings: Settings) -> SyncRun:
 
 
 async def _numista(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    if not settings.numista_api_key:
-        log.warning("numista_catalog skipped: NUMISTA_API_KEY not set")
-        return SyncRun(job="numista_catalog", status=SyncStatus.FAILED, error="no api key")
     return await jobs.run_numista_catalog(
         engine,
         data_dir=settings.data_dir,
@@ -40,8 +37,6 @@ async def _numista(engine: AsyncEngine, settings: Settings) -> SyncRun:
 
 
 async def _numista_prices(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    if not settings.numista_api_key:
-        return SyncRun(job="numista_prices", status=SyncStatus.FAILED, error="no api key")
     return await jobs.run_numista_prices(
         engine,
         data_dir=settings.data_dir,
@@ -70,10 +65,7 @@ async def _embed_types(engine: AsyncEngine, settings: Settings) -> SyncRun:
     return await jobs.run_embed_types(engine)
 
 
-def _ebay_credentials(settings: Settings, job: str) -> dict[str, str] | None:
-    if not settings.ebay_client_id or not settings.ebay_client_secret:
-        log.warning("%s skipped: EBAY_CLIENT_ID/EBAY_CLIENT_SECRET not set", job)
-        return None
+def _ebay_credentials(settings: Settings) -> dict[str, str]:
     return {
         "client_id": settings.ebay_client_id,
         "client_secret": settings.ebay_client_secret,
@@ -82,24 +74,15 @@ def _ebay_credentials(settings: Settings, job: str) -> dict[str, str] | None:
 
 
 async def _ebay_market(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    creds = _ebay_credentials(settings, "ebay_market")
-    if creds is None:
-        return SyncRun(job="ebay_market", status=SyncStatus.FAILED, error="no ebay keys")
-    return await jobs.run_ebay_market(engine, **creds)
+    return await jobs.run_ebay_market(engine, **_ebay_credentials(settings))
 
 
 async def _ebay_hot(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    creds = _ebay_credentials(settings, "ebay_hot")
-    if creds is None:
-        return SyncRun(job="ebay_hot", status=SyncStatus.FAILED, error="no ebay keys")
-    return await jobs.run_ebay_market(engine, hot_days=30, **creds)
+    return await jobs.run_ebay_market(engine, hot_days=30, **_ebay_credentials(settings))
 
 
 async def _auctions(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    creds = _ebay_credentials(settings, "auction_close_check")
-    if creds is None:
-        return SyncRun(job="auction_close_check", status=SyncStatus.FAILED, error="no ebay keys")
-    return await jobs.run_auction_close_check(engine, **creds)
+    return await jobs.run_auction_close_check(engine, **_ebay_credentials(settings))
 
 
 # (job id, interval, runner)
@@ -116,6 +99,25 @@ JOB_SPECS: tuple[tuple[str, timedelta, JobFactory], ...] = (
     ("publish_news", timedelta(hours=1), _news),
     ("embed_types", timedelta(hours=24), _embed_types),
 )
+
+
+NUMISTA_JOBS = frozenset({"numista_catalog", "numista_prices"})
+EBAY_JOBS = frozenset({"ebay_market", "ebay_hot", "auction_close_check"})
+
+
+def enabled_job_specs(settings: Settings) -> list[tuple[str, timedelta, JobFactory]]:
+    """Jobs whose source has credentials. Missing keys are reported once at startup instead of
+    as a failed run every cadence; add them to .env and restart `serve`."""
+    disabled: set[str] = set()
+    if not settings.numista_api_key:
+        disabled |= NUMISTA_JOBS
+        log.warning("NUMISTA_API_KEY not set: %s disabled", ", ".join(sorted(NUMISTA_JOBS)))
+    if not settings.ebay_client_id or not settings.ebay_client_secret:
+        disabled |= EBAY_JOBS
+        log.warning(
+            "EBAY_CLIENT_ID/EBAY_CLIENT_SECRET not set: %s disabled", ", ".join(sorted(EBAY_JOBS))
+        )
+    return [spec for spec in JOB_SPECS if spec[0] not in disabled]
 
 
 def plan_next_run(last_success: datetime | None, interval: timedelta, now: datetime) -> datetime:
@@ -144,7 +146,7 @@ async def last_success(engine: AsyncEngine, job: str) -> datetime | None:
 async def build_scheduler(engine: AsyncEngine, settings: Settings) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=UTC)
     now = datetime.now(UTC)
-    for job_id, interval, runner in JOB_SPECS:
+    for job_id, interval, runner in enabled_job_specs(settings):
         next_run = plan_next_run(await last_success(engine, job_id), interval, now)
 
         async def run(runner=runner, job_id=job_id, interval=interval) -> None:

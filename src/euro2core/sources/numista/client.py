@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 
+from euro2core.sources.errors import SourcePaused
 from euro2core.sources.numista.parser import is_two_euro
 
 NUMISTA_API_BASE = "https://api.numista.com/api/v3"
@@ -18,6 +19,10 @@ MAX_RETRIES = 3
 SEARCH_PAGE_SIZE = 100
 
 log = logging.getLogger(__name__)
+
+
+class NumistaQuotaExceeded(SourcePaused):
+    """Daily quota (~2,000 calls) exhausted: 429 persisted through every retry."""
 
 
 class NumistaClient:
@@ -82,7 +87,9 @@ class NumistaClient:
                 response = await client.get(
                     f"{NUMISTA_API_BASE}{path}", params=params, headers=self._headers
                 )
-            if response.status_code == 429 and attempt < MAX_RETRIES:
+            if response.status_code == 429:
+                if attempt == MAX_RETRIES:
+                    raise NumistaQuotaExceeded(f"Numista quota exhausted ({path})")
                 delay = float(response.headers.get("Retry-After", 2 ** (attempt + 1)))
                 log.warning("Numista rate limit hit, retrying in %.0fs", delay)
                 await asyncio.sleep(delay)

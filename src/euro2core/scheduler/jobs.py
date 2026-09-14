@@ -31,6 +31,7 @@ from euro2core.sources.ebay.parser import (
 )
 from euro2core.sources.ebay.queries import search_query
 from euro2core.sources.ecb.source import ECB_SOURCE_CODE, EcbSource
+from euro2core.sources.errors import SourcePaused
 from euro2core.sources.http_cache import HttpCache
 from euro2core.sources.numista.client import NumistaClient
 from euro2core.sources.numista.parser import SEARCH_ISSUERS, parse_issue, parse_type
@@ -93,6 +94,9 @@ async def _run_job_locked(
     try:
         await body(sessions, stats, cursor, checkpoint)
         status, error = SyncStatus.SUCCEEDED, None
+    except SourcePaused as exc:  # expected: keep the cursor, retry later, no traceback
+        status, error = SyncStatus.FAILED, str(exc)
+        log.warning("%s paused: %s", job, exc)
     except Exception as exc:  # the run record must always be closed
         status, error = SyncStatus.FAILED, f"{exc}\n{traceback.format_exc()}"
         log.exception("%s failed", job)

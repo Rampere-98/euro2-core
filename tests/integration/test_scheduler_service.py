@@ -29,7 +29,8 @@ async def test_scheduler_registers_jobs_and_resumes_from_last_success(engine):
         )
         await session.commit()
 
-    scheduler = await build_scheduler(engine, Settings(_env_file=None))
+    # a key is required for the Numista jobs to be scheduled; nothing here calls the API
+    scheduler = await build_scheduler(engine, Settings(_env_file=None, numista_api_key="test"))
     jobs = {j.id: j for j in scheduler.get_jobs()}
     assert set(jobs) >= {"ecb_discover", "numista_catalog"}
 
