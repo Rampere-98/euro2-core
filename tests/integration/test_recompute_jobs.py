@@ -183,3 +183,22 @@ async def test_rarity_is_relative_to_the_finish_class(engine, session):
         scores[circ.id].components["mintage_bounds"]
         != scores[proofs[0].id].components["mintage_bounds"]
     )
+
+
+async def test_estimates_disappear_when_their_observations_age_out(engine, session):
+    from sqlalchemy import update
+
+    issues = await _seed(session)
+    await run_recompute_prices(engine)
+    async with async_sessionmaker(engine)() as s:
+        assert len((await s.scalars(select(PriceEstimate))).all()) > 0
+        await s.execute(
+            update(MarketObservation).values(observed_at=NOW - timedelta(days=400))
+        )
+        await s.commit()
+
+    await run_recompute_prices(engine)
+
+    async with async_sessionmaker(engine)() as s:
+        assert (await s.scalars(select(PriceEstimate))).all() == []
+        assert issues["rare"].id is not None

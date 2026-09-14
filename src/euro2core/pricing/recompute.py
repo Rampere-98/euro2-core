@@ -36,7 +36,17 @@ async def recompute_issue_prices(
             )
         )
     ).all()
+    existing = {
+        (e.grade, e.region): e
+        for e in (
+            await session.scalars(select(PriceEstimate).where(PriceEstimate.issue_id == issue_id))
+        ).all()
+    }
     if not rows:
+        # every observation aged out: a year-old price must not be served as current
+        for stale in existing.values():
+            await session.delete(stale)
+        await session.flush()
         return []
     by_id = {str(r.id): r for r in rows}
     observations = [
@@ -53,12 +63,6 @@ async def recompute_issue_prices(
     ]
     grades = {r.grade for r in rows}
     regions = [GLOBAL_REGION, *sorted({r.marketplace for r in rows})]
-    existing = {
-        (e.grade, e.region): e
-        for e in (
-            await session.scalars(select(PriceEstimate).where(PriceEstimate.issue_id == issue_id))
-        ).all()
-    }
     outlier_ids: set[str] = set()
     produced: list[Estimate] = []
     for grade in grades:
@@ -79,6 +83,11 @@ async def recompute_issue_prices(
                 if region == GLOBAL_REGION and previous.basis == "sold" and est.basis == "sold":
                     _maybe_spike(session, issue_id, grade, previous, est)
                 _update_row(previous, est)
+    # grades/regions that no longer have a sample were neither updated nor deleted above
+    kept = {(e.grade, e.region) for e in produced}
+    for key, stale in list(existing.items()):
+        if key not in kept:
+            await session.delete(stale)
     for obs_id, row in by_id.items():
         row.is_outlier = obs_id in outlier_ids
     await session.flush()
