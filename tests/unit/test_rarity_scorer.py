@@ -13,6 +13,16 @@ def market(listings_per_million=None, median_sale=None, catalog_median_lpm=10.0)
     )
 
 
+def test_mintage_scale_can_be_calibrated_per_finish_class():
+    # among proofs, 6,000 pieces is ordinary: with proof-calibrated bounds it lands mid-scale
+    proof_bounds = (1_000, 100_000)
+    mid = score(mintage=10_000, market=market(None, None), mintage_bounds=proof_bounds)
+    assert 40 <= mid.score <= 60
+    assert mid.components["mintage_bounds"] == [1_000, 100_000]
+    # the same mintage on the default (circulation) scale is exceptional
+    assert score(mintage=10_000, market=market(None, None)).score == 100
+
+
 def test_huge_mintage_common_coin_scores_near_zero():
     r = score(mintage=30_000_000, market=market(10, 2.5))
     assert r.score < 15

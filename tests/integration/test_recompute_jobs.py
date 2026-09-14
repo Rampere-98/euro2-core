@@ -155,3 +155,31 @@ async def test_recompute_rarity_scores_issues_with_mintage(engine, session):
     assert again.status == SyncStatus.SUCCEEDED
     async with async_sessionmaker(engine)() as s:
         assert len((await s.scalars(select(RarityScore))).all()) == 2
+
+
+async def test_rarity_is_relative_to_the_finish_class(engine, session):
+    await ensure_reference_data(session)
+    ct = CoinType(kind=CoinKind.COMMEMORATIVE, country_code="DE", year=2006)
+    session.add(ct)
+    await session.flush()
+    # ten proofs between 5k and 50k, one circulation strike of 6M
+    proofs = [
+        CoinIssue(type_id=ct.id, year=2006, mint_mark=f"P{i}", finish=Finish.PROOF, mintage=m)
+        for i, m in enumerate(range(5_000, 55_000, 5_000))
+    ]
+    circ = CoinIssue(
+        type_id=ct.id, year=2006, mint_mark="A", finish=Finish.CIRCULATION, mintage=6_000_000
+    )
+    session.add_all([*proofs, circ])
+    await session.commit()
+
+    await run_recompute_rarity(engine)
+
+    async with async_sessionmaker(engine)() as s:
+        scores = {r.issue_id: r for r in (await s.scalars(select(RarityScore))).all()}
+    proof_scores = sorted(scores[p.id].score for p in proofs)
+    assert proof_scores[0] < 25 and proof_scores[-1] > 75  # spread across the range, not all 100
+    assert (
+        scores[circ.id].components["mintage_bounds"]
+        != scores[proofs[0].id].components["mintage_bounds"]
+    )

@@ -35,15 +35,23 @@ class RarityResult:
     method_version: str = METHOD_VERSION
 
 
-def score(mintage: int | None, market: MarketSignals) -> RarityResult | None:
+def score(
+    mintage: int | None,
+    market: MarketSignals,
+    mintage_bounds: tuple[int, int] | None = None,
+) -> RarityResult | None:
+    """Score 0-100. `mintage_bounds` = (rare, common) mintages that map to 100 and 0; callers
+    calibrate them per finish class so a proof is judged against other proofs."""
     if mintage is None or mintage <= 0:
         return None
+    rare, common = mintage_bounds or (MINTAGE_EXCEPTIONAL, MINTAGE_COMMON)
     components = {
-        "mintage": _mintage_component(mintage),
+        "mintage": _mintage_component(mintage, rare, common),
         "availability": _availability_component(market),
         "premium": _premium_component(market.median_sale_price),
+        "mintage_bounds": [rare, common],
     }
-    available = {k: v for k, v in components.items() if v is not None}
+    available = {k: v for k, v in components.items() if k in WEIGHTS and v is not None}
     total_weight = sum(WEIGHTS[k] for k in available)
     value = sum(WEIGHTS[k] * v for k, v in available.items()) / total_weight
     value = round(_clamp(value), 2)
@@ -61,8 +69,10 @@ def tier_for(value: float) -> str:
     return "common"
 
 
-def _mintage_component(mintage: int) -> float:
-    hi, lo = math.log10(MINTAGE_COMMON), math.log10(MINTAGE_EXCEPTIONAL)
+def _mintage_component(mintage: int, rare: int, common: int) -> float:
+    hi, lo = math.log10(max(common, 2)), math.log10(max(rare, 1))
+    if hi <= lo:
+        return 50.0
     return _clamp(100 * (hi - math.log10(mintage)) / (hi - lo))
 
 

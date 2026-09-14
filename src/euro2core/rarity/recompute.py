@@ -8,12 +8,13 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from euro2core.domain.enums import ObservationKind
+from euro2core.domain.enums import Finish, ObservationKind
 from euro2core.domain.models import CoinIssue, MarketObservation, PriceEstimate, RarityScore
 from euro2core.pricing.estimator import GLOBAL_REGION
 from euro2core.rarity.scorer import MarketSignals, score
 
 ACTIVE_LISTING_WINDOW_DAYS = 30
+MIN_CLASS_SIZE = 10  # below this a finish class keeps the default (circulation) scale
 
 
 async def recompute_all_rarity(session: AsyncSession) -> dict[str, int]:
@@ -28,6 +29,7 @@ async def recompute_all_rarity(session: AsyncSession) -> dict[str, int]:
     }
     with_supply = [v for v in per_million.values() if v > 0]
     baseline = statistics.median(with_supply) if with_supply else None
+    bounds = _mintage_bounds_by_finish(issues)
     existing = {r.issue_id: r for r in (await session.scalars(select(RarityScore))).all()}
 
     stats = {"issues_scored": 0, "issues_without_mintage": 0}
@@ -42,6 +44,7 @@ async def recompute_all_rarity(session: AsyncSession) -> dict[str, int]:
                 median_sale_price=sale_medians.get(issue.id),
                 catalog_median_listings_per_million=baseline,
             ),
+            mintage_bounds=bounds.get(issue.finish),
         )
         if result is None:
             continue
@@ -65,6 +68,24 @@ async def recompute_all_rarity(session: AsyncSession) -> dict[str, int]:
         stats["issues_scored"] += 1
     await session.flush()
     return stats
+
+
+def _mintage_bounds_by_finish(issues) -> dict[Finish, tuple[int, int]]:
+    """(rare, common) mintage per finish class from the catalog's own 1st/99th percentiles,
+    so proofs are judged against proofs and circulation strikes against circulation strikes."""
+    by_finish: dict[Finish, list[int]] = {}
+    for issue in issues:
+        if issue.mintage and issue.mintage > 0:
+            by_finish.setdefault(issue.finish, []).append(issue.mintage)
+    bounds: dict[Finish, tuple[int, int]] = {}
+    for finish, mintages in by_finish.items():
+        if len(mintages) < MIN_CLASS_SIZE:
+            continue
+        quantiles = statistics.quantiles(sorted(mintages), n=100, method="inclusive")
+        rare, common = int(quantiles[0]), int(quantiles[-1])
+        if common > rare:
+            bounds[finish] = (rare, common)
+    return bounds
 
 
 async def _active_listings(session: AsyncSession, now: datetime) -> dict[uuid.UUID, int]:
