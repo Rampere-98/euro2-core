@@ -23,8 +23,13 @@ def create_engine(url: str | None = None) -> AsyncEngine:
 
     @event.listens_for(engine.sync_engine, "connect")
     def _register_vector(dbapi_connection, _record) -> None:
-        # asyncpg needs the vector codec on every new connection
-        dbapi_connection.run_async(register_vector)
+        # asyncpg needs the vector codec on every new connection; before the first
+        # migration the extension does not exist yet, which is fine.
+        try:
+            dbapi_connection.run_async(register_vector)
+        except ValueError as exc:
+            if "unknown type" not in str(exc):
+                raise
 
     return engine
 
