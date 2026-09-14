@@ -1,7 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from euro2core.api.routers import (
@@ -24,6 +27,10 @@ from euro2core.db import get_engine
 from euro2core.scheduler.service import build_scheduler
 
 log = logging.getLogger(__name__)
+
+# Flutter web build (app/build/web) served at /app when present, so a single
+# `euro2 serve` gives both the API and the UI on one origin.
+WEB_BUILD_DIR = Path(__file__).resolve().parents[3] / "app" / "build" / "web"
 
 
 def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) -> FastAPI:
@@ -54,6 +61,13 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
     )
     if engine is not None:
         bind(app, engine)
+    # Native builds (Android/iOS) and `flutter run -d chrome` call the API cross-origin.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     for router in (
         health.router,
         types.router,
@@ -70,4 +84,6 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
         community.router,
     ):
         app.include_router(router)
+    if WEB_BUILD_DIR.is_dir():
+        app.mount("/app", StaticFiles(directory=WEB_BUILD_DIR, html=True), name="app")
     return app

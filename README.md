@@ -1,11 +1,18 @@
 # euro2-core
 
-Autonomous data core for **2 euro coins**: a self-updating catalog of every 2€ coin
+Open numismatics platform for **2 euro coins**: a self-updating catalog of every 2€ coin
 (commemorative and circulation, with mint marks, finishes and documented errors), real
-market prices from actual sales, and an auditable rarity index.
+market prices from actual sales, an auditable rarity index, identification by photo, a
+collector portfolio with signed provenance, a peer-to-peer marketplace and a Flutter app.
 
-This is Module A of a larger numismatics platform. It exposes a REST API that later
-modules (vision identification, portfolio, marketplace) build on.
+| Module | What it does | Where |
+|---|---|---|
+| A · Data core | catalog, sources, consensus, prices, rarity, scheduler | `sources/`, `catalog/`, `consensus/`, `pricing/`, `rarity/`, `scheduler/` |
+| B · Vision | identify a coin from a photo (CLIP + SIFT), confirm loop | `vision/` |
+| C · Knowledge | semantic search in any language, automatic news, expert error reports | `platform/semantic.py`, `platform/news.py`, `platform/community.py` |
+| D · Portfolio | collection, valuation by basis, achievements, price alerts (Pro) | `platform/portfolio.py`, `platform/achievements.py`, `platform/alerts.py` |
+| E · Marketplace | listings of verified pieces, offers, trades, reputation, certificates | `platform/marketplace.py`, `platform/provenance.py` |
+| App | Flutter (web/Android/iOS), Spanish UI, served by the API at `/app` | `app/` |
 
 ## What makes it different
 
@@ -91,6 +98,23 @@ Downloaded images keep their source URL, license and author.
 
 See [docs/superpowers/specs](docs/superpowers/specs/) for the approved design spec.
 
+## Flutter app
+
+```bash
+cd app
+flutter pub get
+flutter build web --release --base-href /app/   # then `euro2 serve` exposes it at /app
+flutter run -d chrome                           # or any device; API URL is editable in Perfil
+```
+
+Six tabs: **Escanear** (camera/gallery → candidates with confidence → "Es esta" feedback),
+**Catálogo** (text or semantic search, country/year filters, provenance and conflicts per fact,
+variants with mintage, rarity tier and prices by basis), **Colección** (net worth split by
+basis, verify a piece by photo, traceability + signed certificate, achievements), **Mercado**
+(publish verified pieces, offers, accept/reject, ratings), **Noticias** (auto-published
+catalog changes, error reports with expert votes) and **Perfil** (login, Pro plan,
+notifications, leaderboard, server URL).
+
 ## License
 
 MIT
@@ -112,3 +136,31 @@ at 45–80 % JPEG quality: **76/80 top-1 (95 %)**; three of the four misses were
 Every request is stored with its embedding; `POST /identify/{id}/confirm` records the true coin,
 which is the training set for future fine-tuning. `uv run euro2 recompute embeddings` builds the
 index (downloads ~600 MB of weights once); the scheduler keeps it updated daily.
+
+## Modules C–E — platform
+
+Accounts use argon2 + JWT (`/auth/register`, `/auth/login`). Everything below is bilingual
+(`Accept-Language: es|en`).
+
+- **Portfolio** — `POST /me/collection` stores a piece (`coin_issue` + grade + optional
+  Sheldon/price). `GET /me/collection` values each piece with the best available basis
+  (realized sales > catalog > asking > face value) and says which one it used; a total is
+  reported per basis so a "catalog" number is never mixed with a real one. Each piece has a
+  `piece_event` trail (added, verified, sold, traded) and an HMAC-signed certificate that
+  anyone can check with `POST /certificates/{id}/verify`.
+- **Verification** — `POST /me/collection/{id}/verify` runs Module B on a photo of the piece;
+  only a high-confidence match with the registered coin marks it verified, and only verified
+  pieces can be listed for sale.
+- **Gamification** — achievements (milestones, complete country, complete joint issue, rare
+  hunter, verified piece) awarded on every change with a notification; `GET /leaderboard`.
+- **Alerts (Pro)** — `POST /me/alerts` above/below thresholds, evaluated after every price
+  recompute. `POST /me/plan/pro` is a demo switch (no billing).
+- **Marketplace** — listings (`/market/listings`, free plan up to 3 active), cash or trade
+  offers, accept/reject transfers the piece and writes the provenance event, five-star
+  ratings feed `GET /users/{id}/reputation`.
+- **Community** — `POST /reports` submits a suspected minting error against a base type;
+  two expert approvals create a documented `error` type with a "community" source (rank 40).
+- **News** — domain events (new type, price jump, validated error) become bilingual
+  `news_item`s hourly. **Semantic search** — `GET /search/semantic?q=` embeds titles and
+  descriptions with `multilingual-e5-small`, so "moneda con un puente" finds bridges in any
+  language.
