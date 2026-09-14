@@ -44,6 +44,17 @@ uv run euro2 serve          # API + scheduler on http://localhost:8000
 If Windows App Control blocks the generated `euro2.exe` launcher (error 4551), use
 `uv run python -m euro2core <command>` instead — same CLI.
 
+## Tests
+
+```bash
+uv run pytest                      # unit tests always run; integration tests need the test DB
+docker exec euro2-db psql -U euro2 -d euro2 -c "CREATE DATABASE euro2_test"
+DATABASE_URL=postgresql+asyncpg://euro2:euro2@localhost:5432/euro2_test uv run alembic upgrade head
+```
+
+Integration tests truncate tables, so they use `euro2_test` (override with
+`TEST_DATABASE_URL`), never the working catalog.
+
 ## Data sources
 
 | Source | Kind | Authority | Access |

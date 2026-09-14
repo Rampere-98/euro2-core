@@ -310,24 +310,25 @@ async def _store_picture(
     folder: str,
     fetcher: ImageFetcher,
 ) -> None:
-    exists = (
-        await session.scalars(select(CoinImage.id).where(CoinImage.source_url == picture.url))
+    image = (
+        await session.scalars(select(CoinImage).where(CoinImage.source_url == picture.url))
     ).first()
-    if exists is not None:
+    if image is not None and image.local_path:
         return
-    try:
-        stored = await fetcher.fetch(picture.url, folder)
-    except Exception as exc:  # a missing photo must not abort the catalog sync
-        log.warning("image fetch failed for %s: %s", picture.url, exc)
-        return
-    session.add(
-        CoinImage(
+    if image is None:
+        image = CoinImage(
             type_id=coin_type.id,
             side=side,
-            local_path=str(stored.local_path),
             source_url=picture.url,
             license=picture.license,
             author=picture.author,
-            sha256=stored.sha256,
         )
-    )
+        session.add(image)
+    try:
+        stored = await fetcher.fetch(picture.url, folder)
+    except Exception as exc:
+        # Numista photos sit behind bot protection; keep the attributed reference and retry later
+        log.info("photo not downloadable, kept as reference: %s (%s)", picture.url, exc)
+        return
+    image.local_path = str(stored.local_path)
+    image.sha256 = stored.sha256

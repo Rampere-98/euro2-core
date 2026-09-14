@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 class ImageOut(BaseModel):
     id: uuid.UUID
     side: str
-    url: str
+    url: str | None  # local copy served by the API; None when only the reference is known
     source_url: str
     author: str | None
     license: str | None

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
 from euro2core.api.app import create_app
 from euro2core.catalog.ingest_ecb import ingest_ecb_entries
@@ -14,7 +15,6 @@ from euro2core.catalog.seed import ensure_reference_data, get_source
 from euro2core.domain.enums import Grade, ObservationKind
 from euro2core.domain.models import (
     CoinIssue,
-    DomainEvent,
     MarketObservation,
     PriceEstimate,
     RarityScore,
@@ -22,7 +22,6 @@ from euro2core.domain.models import (
 )
 from euro2core.sources.ecb.parser import EcbEntry
 from euro2core.sources.numista.parser import parse_issue, parse_type
-from sqlalchemy import select
 
 pytestmark = pytest.mark.integration
 
@@ -192,7 +191,8 @@ async def test_events_sources_and_sync_runs(client, catalog):
     assert any(e["kind"] == "new_type_discovered" for e in events["items"])
 
     sources = (await client.get("/sources")).json()
-    assert {s["code"]: s["authority_rank"] for s in sources} >= {"ecb": 100, "numista": 50}
+    ranks = {s["code"]: s["authority_rank"] for s in sources}
+    assert ranks["ecb"] == 100 and ranks["numista"] == 50 and ranks["ebay"] == 10
 
     runs = (await client.get("/sync/runs")).json()
     assert runs["items"][0]["job"] == "ecb_discover"

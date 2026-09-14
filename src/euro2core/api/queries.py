@@ -110,7 +110,7 @@ def image_out(img: CoinImage) -> ImageOut:
     return ImageOut(
         id=img.id,
         side=img.side.value,
-        url=f"/images/{img.id}",
+        url=f"/images/{img.id}" if img.local_path else None,
         source_url=img.source_url,
         author=img.author,
         license=img.license,

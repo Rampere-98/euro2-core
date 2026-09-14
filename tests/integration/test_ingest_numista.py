@@ -217,3 +217,39 @@ async def test_images_are_stored_with_numista_attribution(seeded, tmp_path):
     images = (await session.scalars(select(CoinImage))).all()
     assert {i.side.value for i in images} == {"obverse", "reverse"}
     assert all(i.author == "brismike" and i.license == "CC BY-NC" for i in images)
+    assert all(i.local_path and i.sha256 for i in images)
+
+
+async def test_blocked_photo_is_kept_as_reference_without_local_file(seeded, tmp_path):
+    import httpx
+    import respx
+
+    from euro2core.images.fetcher import ImageFetcher
+
+    session = seeded
+    t = parse_type(load("type_2169.json"))
+    with respx.mock:
+        respx.get(url__regex=r".*numista.*").mock(return_value=httpx.Response(403))
+        await ingest_numista_type(
+            session, t, [], translations=[], fetcher=ImageFetcher(tmp_path, "t")
+        )
+    await session.commit()
+    images = (await session.scalars(select(CoinImage))).all()
+    assert len(images) == 2
+    assert all(i.local_path is None and i.sha256 is None for i in images)
+    assert all(i.source_url.startswith("https://en.numista.com/") for i in images)
+
+    # a later run with the photo reachable fills the local copy in
+    with respx.mock:
+        respx.get(url__regex=r".*numista.*").mock(
+            return_value=httpx.Response(
+                200, content=b"\x89PNG" + b"\0" * 8, headers={"Content-Type": "image/jpeg"}
+            )
+        )
+        await ingest_numista_type(
+            session, t, [], translations=[], fetcher=ImageFetcher(tmp_path, "t")
+        )
+    await session.commit()
+    images = (await session.scalars(select(CoinImage))).all()
+    assert len(images) == 2
+    assert all(i.local_path and i.sha256 for i in images)

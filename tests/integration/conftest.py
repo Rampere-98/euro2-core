@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from euro2core.db import Base, create_engine
 from euro2core.domain import models  # noqa: F401
 
+# Integration tests TRUNCATE tables, so they must never point at the working catalog.
 TEST_DB_URL = os.environ.get(
-    "TEST_DATABASE_URL", "postgresql+asyncpg://euro2:euro2@localhost:5432/euro2"
+    "TEST_DATABASE_URL", "postgresql+asyncpg://euro2:euro2@localhost:5432/euro2_test"
 )
 
 TABLES_IN_DELETE_ORDER = [
@@ -59,7 +60,10 @@ async def engine():
     async with engine.begin() as conn:
         missing = [t for t in Base.metadata.sorted_tables if not await _table_exists(conn, t.name)]
         if missing:
-            pytest.skip("run `uv run python -m euro2core db upgrade` first")
+            pytest.skip(
+                "test database not migrated: "
+                f"DATABASE_URL={TEST_DB_URL} uv run alembic upgrade head"
+            )
         await conn.execute(text("TRUNCATE " + ", ".join(TABLES_IN_DELETE_ORDER) + " CASCADE"))
     yield engine
     await engine.dispose()
