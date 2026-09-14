@@ -54,3 +54,33 @@ class SyncStatus(StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+
+class Plan(StrEnum):
+    FREE = "free"
+    PRO = "pro"
+
+
+class Role(StrEnum):
+    USER = "user"
+    EXPERT = "expert"
+    ADMIN = "admin"
+
+
+class ListingStatus(StrEnum):
+    ACTIVE = "active"
+    SOLD = "sold"
+    WITHDRAWN = "withdrawn"
+
+
+class OfferStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    WITHDRAWN = "withdrawn"
+
+
+class ReportStatus(StrEnum):
+    PENDING = "pending"
+    VALIDATED = "validated"
+    REJECTED = "rejected"

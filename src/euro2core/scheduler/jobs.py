@@ -18,6 +18,9 @@ from euro2core.catalog.seed import ensure_reference_data
 from euro2core.domain.enums import ObservationKind, SyncStatus
 from euro2core.domain.models import CoinIssue, CoinType, MarketObservation, SyncRun
 from euro2core.images.fetcher import ImageFetcher
+from euro2core.platform.alerts import check_alerts
+from euro2core.platform.news import publish_pending
+from euro2core.platform.semantic import embed_types, get_text_embedder
 from euro2core.pricing.recompute import issues_with_observations, recompute_issue_prices, summarize
 from euro2core.rarity.recompute import recompute_all_rarity
 from euro2core.sources.ebay.client import EbayClient
@@ -199,8 +202,37 @@ async def run_recompute_prices(engine: AsyncEngine) -> SyncRun:
                 stats["issues_estimated"] += 1
                 for basis, n in summarize(estimates).items():
                     stats["by_basis"][basis] = stats["by_basis"].get(basis, 0) + n
+        async with sessions() as session:
+            stats.update(await check_alerts(session))
+            await session.commit()
 
     return await _run_job(engine, "recompute_prices", body, stats)
+
+
+async def run_publish_news(engine: AsyncEngine) -> SyncRun:
+    stats: dict[str, Any] = {}
+
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
+        async with sessions() as session:
+            stats.update(await publish_pending(session))
+            await session.commit()
+
+    return await _run_job(engine, "publish_news", body, stats)
+
+
+async def run_embed_types(engine: AsyncEngine) -> SyncRun:
+    stats: dict[str, Any] = {}
+
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
+        async with sessions() as session:
+            stats.update(await embed_types(session, get_text_embedder()))
+            await session.commit()
+
+    return await _run_job(engine, "embed_types", body, stats)
 
 
 async def run_recompute_rarity(engine: AsyncEngine) -> SyncRun:

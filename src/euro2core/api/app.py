@@ -5,11 +5,15 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from euro2core.api.routers import (
+    auth,
+    community,
     events,
     health,
     identify,
     images,
     issues,
+    marketplace,
+    portfolio,
     search,
     sources,
     sync,
@@ -60,6 +64,10 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
         sync.router,
         images.router,
         identify.router,
+        auth.router,
+        portfolio.router,
+        marketplace.router,
+        community.router,
     ):
         app.include_router(router)
     return app

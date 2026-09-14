@@ -14,6 +14,21 @@ TEST_DB_URL = os.environ.get(
 )
 
 TABLES_IN_DELETE_ORDER = [
+    "rating",
+    "offer",
+    "listing",
+    "expert_vote",
+    "expert_report",
+    "news_item",
+    "type_embedding",
+    "notification",
+    "price_alert",
+    "user_achievement",
+    "piece_event",
+    "collection_item",
+    "app_user",
+    "image_embedding",
+    "identification",
     "rarity_score",
     "price_estimate",
     "market_observation",

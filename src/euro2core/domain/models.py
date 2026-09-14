@@ -30,8 +30,13 @@ from euro2core.domain.enums import (
     Finish,
     Grade,
     ImageSide,
+    ListingStatus,
     ObservationKind,
+    OfferStatus,
     Packaging,
+    Plan,
+    ReportStatus,
+    Role,
     SourceKind,
     SyncStatus,
     VerificationStatus,
@@ -361,3 +366,260 @@ class ImageEmbedding(Base):
     embedding: Mapped[list[float]] = mapped_column(VECTOR(512), nullable=False)
 
     __table_args__ = (UniqueConstraint("image_id", "rotation", name="uq_image_embedding_rotation"),)
+
+
+# --------------------------------------------------------------------------------------
+# Platform: users, collections, gamification, community, marketplace
+# --------------------------------------------------------------------------------------
+
+
+class User(Base):
+    __tablename__ = "app_user"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(60), nullable=False)
+    plan: Mapped[Plan] = mapped_column(_enum(Plan, "plan"), default=Plan.FREE, nullable=False)
+    role: Mapped[Role] = mapped_column(_enum(Role, "role"), default=Role.USER, nullable=False)
+    country_code: Mapped[str | None] = mapped_column(ForeignKey("country.code"))
+    created_at: Mapped[datetime] = _now()
+
+
+class CollectionItem(Base):
+    """A concrete piece a user owns. Ownership changes are recorded in piece_event."""
+
+    __tablename__ = "collection_item"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    issue_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coin_issue.id", ondelete="RESTRICT"), nullable=False
+    )
+    grade: Mapped[Grade] = mapped_column(
+        _enum(Grade, "grade"), default=Grade.UNKNOWN, nullable=False
+    )
+    sheldon: Mapped[int | None] = mapped_column(SmallInteger)
+    acquired_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    acquired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verification_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("identification.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = _now()
+
+    __table_args__ = (
+        Index("ix_collection_item_user", "user_id"),
+        CheckConstraint("sheldon IS NULL OR sheldon BETWEEN 1 AND 70", name="ck_item_sheldon"),
+    )
+
+
+class PieceEvent(Base):
+    """Provenance chain of a piece: registered, sold, traded, verified."""
+
+    __tablename__ = "piece_event"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("collection_item.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    from_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    to_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    details: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    at: Mapped[datetime] = _now()
+
+    __table_args__ = (Index("ix_piece_event_item", "item_id", "at"),)
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievement"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    code: Mapped[str] = mapped_column(String(60), nullable=False)
+    earned_at: Mapped[datetime] = _now()
+    details: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+
+    __table_args__ = (UniqueConstraint("user_id", "code", name="uq_user_achievement"),)
+
+
+class PriceAlert(Base):
+    __tablename__ = "price_alert"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    issue_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coin_issue.id", ondelete="CASCADE"), nullable=False
+    )
+    direction: Mapped[str] = mapped_column(String(5), nullable=False)  # above | below
+    threshold: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = _now()
+
+
+class Notification(Base):
+    __tablename__ = "notification"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str | None] = mapped_column(Text)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _now()
+
+    __table_args__ = (Index("ix_notification_user", "user_id", "created_at"),)
+
+
+class NewsItem(Base):
+    """Editorial feed generated from domain events (new emissions, revisions, price moves)."""
+
+    __tablename__ = "news_item"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("domain_event.id", ondelete="SET NULL"), unique=True
+    )
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    entity: Mapped[str] = mapped_column(String(40), nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    title_en: Mapped[str] = mapped_column(String(300), nullable=False)
+    title_es: Mapped[str] = mapped_column(String(300), nullable=False)
+    body_en: Mapped[str | None] = mapped_column(Text)
+    body_es: Mapped[str | None] = mapped_column(Text)
+    published_at: Mapped[datetime] = _now()
+
+    __table_args__ = (Index("ix_news_published", "published_at"),)
+
+
+class TypeEmbedding(Base):
+    """Multilingual text embedding of a coin type for semantic search."""
+
+    __tablename__ = "type_embedding"
+
+    type_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coin_type.id", ondelete="CASCADE"), primary_key=True
+    )
+    text_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(384), nullable=False)
+    updated_at: Mapped[datetime] = _now()
+
+
+class ExpertReport(Base):
+    """A reported error/variety; experts validate it before it enters the catalog."""
+
+    __tablename__ = "expert_report"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    reporter_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    base_type_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coin_type.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    image_path: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[ReportStatus] = mapped_column(
+        _enum(ReportStatus, "report_status"), default=ReportStatus.PENDING, nullable=False
+    )
+    created_type_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("coin_type.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = _now()
+
+
+class ExpertVote(Base):
+    __tablename__ = "expert_vote"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("expert_report.id", ondelete="CASCADE"), nullable=False
+    )
+    expert_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    approve: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _now()
+
+    __table_args__ = (UniqueConstraint("report_id", "expert_id", name="uq_expert_vote"),)
+
+
+class Listing(Base):
+    __tablename__ = "listing"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    seller_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("collection_item.id", ondelete="CASCADE"), nullable=False
+    )
+    price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))  # None = trade only
+    accepts_trades: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[ListingStatus] = mapped_column(
+        _enum(ListingStatus, "listing_status"), default=ListingStatus.ACTIVE, nullable=False
+    )
+    created_at: Mapped[datetime] = _now()
+
+    __table_args__ = (
+        CheckConstraint("price IS NULL OR price > 0", name="ck_listing_price"),
+        Index("ix_listing_status", "status", "created_at"),
+    )
+
+
+class Offer(Base):
+    __tablename__ = "offer"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    listing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("listing.id", ondelete="CASCADE"), nullable=False
+    )
+    buyer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    offered_item_ids: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    message: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[OfferStatus] = mapped_column(
+        _enum(OfferStatus, "offer_status"), default=OfferStatus.PENDING, nullable=False
+    )
+    created_at: Mapped[datetime] = _now()
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Rating(Base):
+    __tablename__ = "rating"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    offer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("offer.id", ondelete="CASCADE"), nullable=False
+    )
+    rater_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    rated_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    stars: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _now()
+
+    __table_args__ = (
+        UniqueConstraint("offer_id", "rater_id", name="uq_rating_once_per_side"),
+        CheckConstraint("stars BETWEEN 1 AND 5", name="ck_rating_stars"),
+    )

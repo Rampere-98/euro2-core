@@ -13,7 +13,9 @@ from euro2core.scheduler.jobs import (
     run_ebay_market,
     run_ecb_discover,
     run_embed_images,
+    run_embed_types,
     run_numista_catalog,
+    run_publish_news,
     run_recompute_prices,
     run_recompute_rarity,
     run_reconcile,
@@ -131,6 +133,18 @@ def sync_auctions() -> None:
 def recompute_embeddings() -> None:
     """Embed catalog images with CLIP so photos can be identified (downloads the model once)."""
     _report_run(asyncio.run(run_embed_images(get_engine())))
+
+
+@recompute_app.command("search-index")
+def recompute_search_index() -> None:
+    """Embed coin texts for multilingual semantic search (downloads a small model once)."""
+    _report_run(asyncio.run(run_embed_types(get_engine())))
+
+
+@app.command("news")
+def publish_news() -> None:
+    """Turn new catalog events into news items."""
+    _report_run(asyncio.run(run_publish_news(get_engine())))
 
 
 @app.command("reconcile")

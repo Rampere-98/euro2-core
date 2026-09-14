@@ -43,3 +43,5 @@ def test_job_specs_cover_the_approved_cadences():
     assert specs["ebay_hot"] == timedelta(hours=6)
     assert specs["auction_close_check"] == timedelta(hours=1)
     assert specs["embed_images"] == timedelta(hours=24)
+    assert specs["publish_news"] == timedelta(hours=1)
+    assert specs["embed_types"] == timedelta(hours=24)

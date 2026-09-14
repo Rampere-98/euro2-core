@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     ebay_client_secret: str = ""
     data_dir: Path = Path("./data")
     user_agent: str = "euro2-core/0.1"
+    # Signs login tokens and digital certificates; set a long random value in .env
+    secret_key: str = "change-me-in-.env"
+    token_hours: int = 24 * 30
 
     @property
     def images_dir(self) -> Path:
