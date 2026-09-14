@@ -37,6 +37,7 @@ def test_job_specs_cover_the_approved_cadences():
     specs = {name: interval for name, interval, _ in JOB_SPECS}
     assert specs["ecb_discover"] == timedelta(hours=24)
     assert specs["numista_catalog"] == timedelta(days=7)
+    assert specs["numista_prices"] == timedelta(hours=24)
     assert specs["recompute_prices"] == timedelta(hours=24)
     assert specs["recompute_rarity"] == timedelta(hours=24)
     assert specs["ebay_market"] == timedelta(hours=72)

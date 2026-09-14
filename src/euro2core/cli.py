@@ -15,6 +15,7 @@ from euro2core.scheduler.jobs import (
     run_embed_images,
     run_embed_types,
     run_numista_catalog,
+    run_numista_prices,
     run_publish_news,
     run_recompute_prices,
     run_recompute_rarity,
@@ -83,6 +84,21 @@ def sync_numista(
             api_key=settings.numista_api_key,
             user_agent=settings.user_agent,
             issuers=issuer or None,
+        )
+    )
+    _report_run(run)
+
+
+@sync_app.command("numista-prices")
+def sync_numista_prices() -> None:
+    """Fetch Numista catalog values (labelled "catalog", ranked below real sales)."""
+    settings = get_settings()
+    run = asyncio.run(
+        run_numista_prices(
+            get_engine(),
+            data_dir=settings.data_dir,
+            api_key=settings.numista_api_key,
+            user_agent=settings.user_agent,
         )
     )
     _report_run(run)

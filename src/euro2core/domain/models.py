@@ -279,7 +279,7 @@ class PriceEstimate(Base):
     computed_at: Mapped[datetime] = _now()
 
     __table_args__ = (
-        UniqueConstraint("issue_id", "grade", "region", name="uq_price_estimate_scope"),
+        UniqueConstraint("issue_id", "grade", "region", "basis", name="uq_price_estimate_scope"),
     )
 
 

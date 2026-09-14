@@ -39,6 +39,17 @@ async def _numista(engine: AsyncEngine, settings: Settings) -> SyncRun:
     )
 
 
+async def _numista_prices(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    if not settings.numista_api_key:
+        return SyncRun(job="numista_prices", status=SyncStatus.FAILED, error="no api key")
+    return await jobs.run_numista_prices(
+        engine,
+        data_dir=settings.data_dir,
+        api_key=settings.numista_api_key,
+        user_agent=settings.user_agent,
+    )
+
+
 async def _prices(engine: AsyncEngine, settings: Settings) -> SyncRun:
     return await jobs.run_recompute_prices(engine)
 
@@ -95,6 +106,7 @@ async def _auctions(engine: AsyncEngine, settings: Settings) -> SyncRun:
 JOB_SPECS: tuple[tuple[str, timedelta, JobFactory], ...] = (
     ("ecb_discover", timedelta(hours=24), _ecb),
     ("numista_catalog", timedelta(days=7), _numista),
+    ("numista_prices", timedelta(hours=24), _numista_prices),
     ("ebay_market", timedelta(hours=72), _ebay_market),
     ("ebay_hot", timedelta(hours=6), _ebay_hot),
     ("auction_close_check", timedelta(hours=1), _auctions),

@@ -22,6 +22,7 @@ from euro2core.pricing.estimator import (
 log = logging.getLogger(__name__)
 
 SPIKE_THRESHOLD = 0.30
+CATALOG_BASIS = "catalog"  # maintained by the numista_prices job, not by observations
 
 
 async def recompute_issue_prices(
@@ -39,7 +40,11 @@ async def recompute_issue_prices(
     existing = {
         (e.grade, e.region): e
         for e in (
-            await session.scalars(select(PriceEstimate).where(PriceEstimate.issue_id == issue_id))
+            await session.scalars(
+                select(PriceEstimate).where(
+                    PriceEstimate.issue_id == issue_id, PriceEstimate.basis != CATALOG_BASIS
+                )
+            )
         ).all()
     }
     if not rows:

@@ -45,6 +45,11 @@ class NumistaClient:
     async def get_issues(self, type_id: int, lang: str = "en") -> list[dict[str, Any]]:
         return await self._get(f"/types/{type_id}/issues", {"lang": lang})
 
+    async def get_prices(
+        self, type_id: int, issue_id: int, currency: str = "EUR"
+    ) -> dict[str, Any]:
+        return await self._get(f"/types/{type_id}/issues/{issue_id}/prices", {"currency": currency})
+
     async def search_two_euro_types(self, issuer: str, lang: str = "en") -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         page = 1

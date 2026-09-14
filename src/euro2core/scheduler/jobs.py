@@ -16,7 +16,7 @@ from euro2core.catalog.ingest_numista import ingest_numista_type
 from euro2core.catalog.reconcile import link_by_elimination
 from euro2core.catalog.seed import ensure_reference_data
 from euro2core.domain.enums import ObservationKind, SyncStatus
-from euro2core.domain.models import CoinIssue, CoinType, MarketObservation, SyncRun
+from euro2core.domain.models import CoinIssue, CoinType, MarketObservation, PriceEstimate, SyncRun
 from euro2core.images.fetcher import ImageFetcher
 from euro2core.platform.alerts import check_alerts
 from euro2core.platform.news import publish_pending
@@ -34,6 +34,7 @@ from euro2core.sources.ecb.source import ECB_SOURCE_CODE, EcbSource
 from euro2core.sources.http_cache import HttpCache
 from euro2core.sources.numista.client import NumistaClient
 from euro2core.sources.numista.parser import SEARCH_ISSUERS, parse_issue, parse_type
+from euro2core.sources.numista.prices import parse_prices
 from euro2core.vision.embedder import get_embedder
 from euro2core.vision.index import embed_missing_images
 
@@ -477,6 +478,97 @@ async def run_numista_catalog(
             await session.commit()
 
     return await _run_job(engine, "numista_catalog", body, stats)
+
+
+CATALOG_PRICE_TTL_DAYS = 30
+
+
+async def run_numista_prices(
+    engine: AsyncEngine,
+    *,
+    data_dir: Path,
+    api_key: str,
+    user_agent: str,
+    max_calls: int = 1200,
+) -> SyncRun:
+    """Fetch Numista catalog values for issues lacking a fresh one. Stored with basis
+    "catalog" so the valuation layer ranks them below realized sales."""
+    client = NumistaClient(
+        api_key=api_key, user_agent=user_agent, cache_dir=data_dir / "cache" / "numista"
+    )
+    stats: dict[str, Any] = {
+        "issues_priced": 0,
+        "issues_without_prices": 0,
+        "budget_exhausted": False,
+    }
+
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
+        fresh_after = datetime.now(UTC) - timedelta(days=CATALOG_PRICE_TTL_DAYS)
+        async with sessions() as session:
+            fresh = (
+                select(PriceEstimate.issue_id)
+                .where(PriceEstimate.basis == "catalog", PriceEstimate.computed_at >= fresh_after)
+                .distinct()
+            )
+            targets = (
+                await session.execute(
+                    select(CoinIssue.id, CoinIssue.numista_issue_id, CoinType.numista_type_id)
+                    .join(CoinType, CoinType.id == CoinIssue.type_id)
+                    .where(
+                        CoinIssue.numista_issue_id.is_not(None),
+                        CoinType.numista_type_id.is_not(None),
+                        CoinIssue.id.not_in(fresh),
+                    )
+                    .order_by(CoinIssue.year.desc())
+                )
+            ).all()
+        for i, (issue_id, numista_issue_id, numista_type_id) in enumerate(targets):
+            if i >= max_calls:
+                stats["budget_exhausted"] = True
+                break
+            payload = await client.get_prices(numista_type_id, numista_issue_id)
+            prices = parse_prices(payload)
+            async with sessions() as session:
+                existing = {
+                    e.grade: e
+                    for e in (
+                        await session.scalars(
+                            select(PriceEstimate).where(
+                                PriceEstimate.issue_id == issue_id, PriceEstimate.basis == "catalog"
+                            )
+                        )
+                    ).all()
+                }
+                for grade, value in prices.items():
+                    row = existing.get(grade)
+                    if row is None:
+                        session.add(
+                            PriceEstimate(
+                                issue_id=issue_id,
+                                grade=grade,
+                                region="global",
+                                window_days=0,
+                                median=value,
+                                p25=value,
+                                p75=value,
+                                n_obs=0,
+                                confidence="catalog",
+                                basis="catalog",
+                                method_version="numista-catalog-v1",
+                            )
+                        )
+                    else:
+                        row.median = row.p25 = row.p75 = value
+                        row.computed_at = datetime.now(UTC)
+                await session.commit()
+            if prices:
+                stats["issues_priced"] += 1
+            else:
+                stats["issues_without_prices"] += 1
+
+    return await _run_job(engine, "numista_prices", body, stats)
 
 
 async def run_reconcile(engine: AsyncEngine) -> SyncRun:
