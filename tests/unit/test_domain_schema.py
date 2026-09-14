@@ -73,4 +73,9 @@ def test_enums_cover_approved_vocabulary():
     assert {f.value for f in Finish} == {"circulation", "bu", "proof"}
     assert {p.value for p in Packaging} == {"loose", "coincard", "set"}
     assert {g.value for g in Grade} == {"circulated", "unc", "bu", "proof", "unknown"}
-    assert {o.value for o in ObservationKind} == {"sold", "asking", "auction_closed"}
+    assert {o.value for o in ObservationKind} == {
+        "sold",
+        "asking",
+        "auction_open",
+        "auction_closed",
+    }

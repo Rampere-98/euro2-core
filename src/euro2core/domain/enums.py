@@ -35,6 +35,7 @@ class Grade(StrEnum):
 class ObservationKind(StrEnum):
     SOLD = "sold"
     ASKING = "asking"
+    AUCTION_OPEN = "auction_open"  # live auction; current bid is neither a sale nor an ask
     AUCTION_CLOSED = "auction_closed"
 
 
