@@ -198,7 +198,9 @@ async def test_estimates_disappear_when_their_observations_age_out(engine, sessi
     await run_recompute_prices(engine)
 
     async with async_sessionmaker(engine)() as s:
-        assert (await s.scalars(select(PriceEstimate))).all() == []
+        remaining = (await s.scalars(select(PriceEstimate))).all()
+        # stale market estimates are gone; only the key-free mintage model remains
+        assert {e.basis for e in remaining} <= {"mintage_model"}
         assert issues["rare"].id is not None
 
 

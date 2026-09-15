@@ -7,6 +7,8 @@ import '../state.dart';
 import '../widgets.dart';
 
 const kMarketplaceLabel = {
+  'EURO2': 'Euro2 coleccionistas',
+  'EURO2_USER': 'compras de coleccionistas',
   'EBAY_ES': 'eBay España',
   'EBAY_DE': 'eBay Alemania',
   'EBAY_FR': 'eBay Francia',
@@ -30,6 +32,11 @@ const kReasonLabel = {
 String marketplaceName(String code) => kMarketplaceLabel[code] ?? code;
 
 Future<void> openUrl(BuildContext context, String url) async {
+  if (url.startsWith('euro2://')) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Anuncio entre coleccionistas: Mercado → Coleccionistas')));
+    return;
+  }
   final uri = Uri.parse(url);
   if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
     if (context.mounted) showError(context, 'No se pudo abrir el enlace');
@@ -107,7 +114,7 @@ class _MarketBlockState extends State<MarketBlock> {
     final buy = Map<String, dynamic>.from(m['buy']);
     final offers = List<Map<String, dynamic>>.from(m['offers']);
     final ignored = List<Map<String, dynamic>>.from(m['ignored']);
-    final peers = List<Map<String, dynamic>>.from(m['peers']);
+    final external = List<Map<String, dynamic>>.from(m['external_links'] ?? []);
     final history = List<Map<String, dynamic>>.from(m['history']);
     final estimates = List<Map<String, dynamic>>.from(m['estimate_history']);
     final trend = m['trend_pct'] as num?;
@@ -153,25 +160,26 @@ class _MarketBlockState extends State<MarketBlock> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Text(
-            'Sin ventas registradas todavía. El gráfico se rellena solo a medida que el sistema observa el mercado.',
+            'Sin ventas registradas todavía. El gráfico se rellena solo con las ventas observadas y con las compras que registran los coleccionistas.',
             style: TextStyle(fontSize: 12, color: scheme.outline),
           ),
         ),
+      if (external.isNotEmpty) ...[
+        Text('Ver en las plazas', style: Theme.of(context).textTheme.titleSmall),
+        Wrap(spacing: 6, children: [
+          for (final l in external)
+            ActionChip(
+              avatar: Icon(l['kind'] == 'sold' ? Icons.history : Icons.open_in_new, size: 16),
+              label: Text(l['label'], style: const TextStyle(fontSize: 12)),
+              onPressed: () => openUrl(context, l['url']),
+            ),
+        ]),
+        const SizedBox(height: 8),
+      ],
       if (!widget.compact) ...[
         if (offers.isNotEmpty) ...[
           Text('Anuncios fiables (${offers.length})', style: Theme.of(context).textTheme.titleSmall),
           for (final o in offers) _OfferTile(offer: o, onOpen: (u) => openUrl(context, u)),
-        ],
-        if (peers.isNotEmpty) ...[
-          Text('Entre coleccionistas (${peers.length})', style: Theme.of(context).textTheme.titleSmall),
-          for (final p in peers)
-            ListTile(
-              dense: true,
-              leading: const Icon(Icons.people),
-              title: Text(p['price'] != null ? euro(p['price']) : 'Intercambio'),
-              subtitle: Text('${p['seller']['display_name']} · ${kGradeLabel[p['grade']] ?? p['grade']}'
-                  '${p['verified_at'] != null ? ' · verificada' : ''}'),
-            ),
         ],
         if (ignored.isNotEmpty)
           TextButton(

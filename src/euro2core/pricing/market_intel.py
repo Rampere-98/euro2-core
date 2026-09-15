@@ -108,7 +108,12 @@ def _stats(prices: list[Decimal], window_days: int) -> RangeStats:
     )
 
 
-def fair_band(realized: RangeStats | None, catalog: Decimal | None) -> tuple[Decimal, Decimal, str]:
+def fair_band(
+    realized: RangeStats | None,
+    catalog: Decimal | None,
+    model: tuple[Decimal, Decimal] | None = None,
+) -> tuple[Decimal, Decimal, str]:
+    """Realized sales first; else the catalog value ±20 %; else the mintage model; else face."""
     if realized is not None:
         return realized.p25, realized.p75, "sold"
     if catalog is not None and catalog > 0:
@@ -117,6 +122,8 @@ def fair_band(realized: RangeStats | None, catalog: Decimal | None) -> tuple[Dec
             _money(catalog * (1 + CATALOG_SPREAD)),
             "catalog",
         )
+    if model is not None:
+        return _money(model[0]), _money(model[1]), "mintage_model"
     return FACE_VALUE, FACE_VALUE, "face_value"
 
 
@@ -126,6 +133,7 @@ def snapshot(
     issue_year: int | None,
     now: datetime,
     catalog: Decimal | None = None,
+    model: tuple[Decimal, Decimal] | None = None,
     type_is_coloured: bool = False,
 ) -> Snapshot:
     scored: list[ScoredListing] = []
@@ -183,7 +191,7 @@ def snapshot(
         (s for s in scored if s.listing.kind in ASKING_KINDS), key=lambda s: s.listing.price
     )
     asking = _stats([s.listing.price for s in asks], 0) if asks else None
-    low, high, basis = fair_band(realized, catalog)
+    low, high, basis = fair_band(realized, catalog, model)
     return Snapshot(
         realized=realized,
         asking=asking,
@@ -323,3 +331,155 @@ def monthly_history(
             )
         )
     return out
+
+
+# ------------------------------------------------------------- selling copy & links
+
+COUNTRY_NAMES = {
+    "es": {
+        "AD": "Andorra", "AT": "Austria", "BE": "Bélgica", "BG": "Bulgaria", "CY": "Chipre",
+        "DE": "Alemania", "EE": "Estonia", "ES": "España", "FI": "Finlandia", "FR": "Francia",
+        "GR": "Grecia", "HR": "Croacia", "IE": "Irlanda", "IT": "Italia", "LT": "Lituania",
+        "LU": "Luxemburgo", "LV": "Letonia", "MC": "Mónaco", "MT": "Malta", "NL": "Países Bajos",
+        "PT": "Portugal", "SI": "Eslovenia", "SK": "Eslovaquia", "SM": "San Marino",
+        "VA": "Vaticano",
+    },
+    "en": {
+        "AD": "Andorra", "AT": "Austria", "BE": "Belgium", "BG": "Bulgaria", "CY": "Cyprus",
+        "DE": "Germany", "EE": "Estonia", "ES": "Spain", "FI": "Finland", "FR": "France",
+        "GR": "Greece", "HR": "Croatia", "IE": "Ireland", "IT": "Italy", "LT": "Lithuania",
+        "LU": "Luxembourg", "LV": "Latvia", "MC": "Monaco", "MT": "Malta", "NL": "Netherlands",
+        "PT": "Portugal", "SI": "Slovenia", "SK": "Slovakia", "SM": "San Marino", "VA": "Vatican",
+    },
+    "de": {
+        "AD": "Andorra", "AT": "Österreich", "BE": "Belgien", "BG": "Bulgarien", "CY": "Zypern",
+        "DE": "Deutschland", "EE": "Estland", "ES": "Spanien", "FI": "Finnland", "FR": "Frankreich",
+        "GR": "Griechenland", "HR": "Kroatien", "IE": "Irland", "IT": "Italien", "LT": "Litauen",
+        "LU": "Luxemburg", "LV": "Lettland", "MC": "Monaco", "MT": "Malta", "NL": "Niederlande",
+        "PT": "Portugal", "SI": "Slowenien", "SK": "Slowakei", "SM": "San Marino", "VA": "Vatikan",
+    },
+}  # fmt: skip
+
+_GRADE_WORD = {
+    "es": {
+        Grade.CIRCULATED: "circulada",
+        Grade.UNKNOWN: "",
+        Grade.UNC: "sin circular",
+        Grade.BU: "BU coincard",
+        Grade.PROOF: "proof",
+    },
+    "en": {
+        Grade.CIRCULATED: "circulated",
+        Grade.UNKNOWN: "",
+        Grade.UNC: "UNC",
+        Grade.BU: "BU",
+        Grade.PROOF: "proof",
+    },
+    "de": {
+        Grade.CIRCULATED: "umlauf",
+        Grade.UNKNOWN: "",
+        Grade.UNC: "unzirkuliert",
+        Grade.BU: "Stempelglanz",
+        Grade.PROOF: "PP",
+    },
+}
+_FINISH_WORD = {
+    "es": {"circulation": "", "bu": "BU", "proof": "proof"},
+    "en": {"circulation": "", "bu": "BU", "proof": "proof"},
+    "de": {"circulation": "", "bu": "Stempelglanz", "proof": "Polierte Platte"},
+}
+_BODY = {
+    "es": (
+        "Moneda conmemorativa de 2 euros de {country} {year}: {title}.{mint} Tirada {mintage}. "
+        "Estado: {grade}. Pieza auténtica, tal como se ve en las fotos. Precio orientativo "
+        "según ventas recientes: {price} €. Envío protegido."
+    ),
+    "en": (
+        "2 euro commemorative coin, {country} {year}: {title}.{mint} Mintage {mintage}. "
+        "Condition: {grade}. Genuine coin as pictured. Guide price from recent sales: "
+        "€{price}. Protected shipping."
+    ),
+    "de": (
+        "2-Euro-Gedenkmünze {country} {year}: {title}.{mint} Auflage {mintage}. "
+        "Erhaltung: {grade}. Originalmünze wie abgebildet. Richtpreis nach aktuellen "
+        "Verkäufen: {price} €. Sicherer Versand."
+    ),
+}
+_MINT = {"es": " Ceca {m}.", "en": " Mint mark {m}.", "de": " Prägestätte {m}."}
+_HEAD = {"es": "2 euros", "en": "2 euro", "de": "2 Euro"}
+EBAY_TITLE_LIMIT = 80
+
+
+def _thousands(n: int | None, lang: str) -> str:
+    if n is None:
+        return "—"
+    s = f"{n:,}"
+    return s.replace(",", ".") if lang in ("es", "de") else s
+
+
+def listing_copy(
+    *,
+    title: str,
+    country_code: str,
+    year: int,
+    mint_mark: str,
+    finish: str,
+    grade: Grade,
+    mintage: int | None,
+    price: Decimal,
+) -> dict[str, dict[str, str]]:
+    """Title and description a seller can paste into any marketplace, per language."""
+    out: dict[str, dict[str, str]] = {}
+    for lang in ("es", "en", "de"):
+        country = COUNTRY_NAMES[lang].get(country_code, country_code)
+        grade_word = _GRADE_WORD[lang].get(grade, "")
+        finish_word = _FINISH_WORD[lang].get(finish, "")
+        parts = [_HEAD[lang], country, str(year), mint_mark, title]
+        # the finish already says BU/proof; do not repeat it through the grade
+        parts.append(
+            finish_word if finish_word and finish_word.lower() in grade_word.lower() else grade_word
+        )
+        head = " ".join(p for p in parts if p)
+        if len(head) > EBAY_TITLE_LIMIT:
+            head = head[: EBAY_TITLE_LIMIT - 1].rsplit(" ", 1)[0] + "…"
+        mint = _MINT[lang].format(m=mint_mark) if mint_mark else ""
+        price_text = f"{price:.2f}".replace(".", ",") if lang in ("es", "de") else f"{price:.2f}"
+        body = _BODY[lang].format(
+            country=country,
+            year=year,
+            title=title,
+            mint=mint,
+            mintage=_thousands(mintage, lang),
+            grade=grade_word or _GRADE_WORD[lang][Grade.UNC],
+            price=price_text,
+        )
+        out[lang] = {"title": head, "body": body}
+    return out
+
+
+_EBAY_SITES = (
+    ("eBay España", "es", "https://www.ebay.es/sch/i.html?_nkw={q}&_sacat=11116"),
+    ("eBay Alemania", "de", "https://www.ebay.de/sch/i.html?_nkw={q}&_sacat=11116"),
+    ("eBay Francia", "en", "https://www.ebay.fr/sch/i.html?_nkw={q}&_sacat=11116"),
+    ("eBay Italia", "en", "https://www.ebay.it/sch/i.html?_nkw={q}&_sacat=11116"),
+)
+
+
+def search_links(*, title: str, country_code: str, year: int) -> list[dict[str, str]]:
+    """Where to look right now: live and completed-sales searches on the main marketplaces.
+    Plain links the user opens; nothing is fetched by the app."""
+    from urllib.parse import quote_plus
+
+    links = []
+    for label, lang, pattern in _EBAY_SITES:
+        country = COUNTRY_NAMES[lang].get(country_code, country_code)
+        q = quote_plus(f"{_HEAD[lang]} {country} {year} {title}")
+        links.append({"label": label, "kind": "live", "url": pattern.format(q=q)})
+        links.append(
+            {
+                "label": f"{label} · vendidas",
+                "kind": "sold",
+                "url": pattern.format(q=q) + "&LH_Sold=1&LH_Complete=1",
+            }
+        )
+    return links

@@ -153,3 +153,35 @@ def test_monthly_history_buckets_reliable_sales_and_asks_per_month():
     august = points[-2]  # sales 20 and 40 days ago
     assert (august.sold_n, august.sold_median) == (2, Decimal("3.90"))
     assert sum(p.sold_n for p in points) == 7  # the lot was ignored
+
+
+def test_listing_copy_is_ready_to_paste_in_three_languages():
+    from euro2core.pricing.market_intel import listing_copy
+
+    copy = listing_copy(
+        title="Schleswig-Holstein",
+        country_code="DE",
+        year=2006,
+        mint_mark="A",
+        finish="circulation",
+        grade=Grade.UNC,
+        mintage=6_000_000,
+        price=Decimal("3.32"),
+    )
+    assert copy["es"]["title"] == "2 euros Alemania 2006 A Schleswig-Holstein sin circular"
+    assert copy["en"]["title"] == "2 euro Germany 2006 A Schleswig-Holstein UNC"
+    assert copy["de"]["title"] == "2 Euro Deutschland 2006 A Schleswig-Holstein unzirkuliert"
+    assert "6.000.000" in copy["es"]["body"] and "3,32" in copy["es"]["body"]
+    assert all(len(c["title"]) <= 80 for c in copy.values())  # eBay title limit
+
+
+def test_external_search_links_cover_the_main_marketplaces():
+    from euro2core.pricing.market_intel import search_links
+
+    links = search_links(title="Schleswig-Holstein", country_code="DE", year=2006)
+    labels = {link["label"] for link in links}
+    assert {"eBay España", "eBay Alemania", "eBay Francia", "eBay Italia"} <= labels
+    ebay_es = next(link for link in links if link["label"] == "eBay España")
+    assert ebay_es["url"].startswith("https://www.ebay.es/sch/i.html?_nkw=")
+    assert "Alemania" in ebay_es["url"] or "Alemania" in ebay_es["url"].replace("+", " ")
+    assert any(link["kind"] == "sold" for link in links)  # completed-sales views too

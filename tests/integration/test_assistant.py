@@ -150,3 +150,69 @@ async def test_alerts_do_not_require_pro_any_more(client, catalog):
     auth = await _signup(client, "free@example.org")
     body = {"issue_id": str(catalog["de_a"]), "direction": "below", "threshold": "3"}
     assert (await client.post("/me/alerts", json=body, headers=auth)).status_code == 201
+
+
+async def test_collectors_own_purchases_and_sales_feed_the_market(client, catalog, session):
+    """No external API: what users pay and sell for becomes the app's own market data."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import select
+
+    from euro2core.domain.models import CollectionItem
+
+    buyer = await _signup(client, "own1@example.org")
+    for price in ("3.50", "4.00", "3.80", "3.20", "4.20"):
+        r = await client.post(
+            "/me/collection",
+            json={
+                "issue_id": str(catalog["de_a"]),
+                "grade": "unc",
+                "acquired_price": price,
+                "acquired_at": (datetime.now(UTC) - timedelta(days=10)).isoformat(),
+            },
+            headers=buyer,
+        )
+        assert r.status_code == 201, r.text
+    gift = await client.post(
+        "/me/collection",
+        json={"issue_id": str(catalog["de_a"]), "grade": "unc", "acquired_price": "0.50"},
+        headers=buyer,
+    )
+    assert gift.status_code == 201  # kept in the collection, not counted as a market price
+
+    m = (await client.get(f"/types/{catalog['de_type']}/market")).json()
+    assert m["realized"]["n"] == 5
+    assert m["band"]["basis"] == "sold"
+    assert (m["realized"]["min"], m["realized"]["max"]) == ("3.20", "4.20")
+
+    # a peer listing is an offer; accepting an offer turns it into a sale
+    seller = await _signup(client, "own2@example.org")
+    piece = CollectionItem(
+        user_id=seller["_id"], issue_id=catalog["de_a"], grade="unc", verified_at=datetime.now(UTC)
+    )
+    session.add(piece)
+    await session.commit()
+    listing = (
+        await client.post(
+            "/market/listings", json={"item_id": str(piece.id), "price": "2.90"}, headers=seller
+        )
+    ).json()
+    m = (await client.get(f"/types/{catalog['de_type']}/market")).json()
+    assert m["buy"]["verdict"] == "buy_now" and m["buy"]["cheapest"]["url"].startswith("euro2://")
+    offer = (
+        await client.post(
+            f"/market/listings/{listing['id']}/offers", json={"amount": "2.90"}, headers=buyer
+        )
+    ).json()
+    assert (
+        await client.post(f"/market/offers/{offer['id']}/accept", headers=seller)
+    ).status_code == 200
+    m = (await client.get(f"/types/{catalog['de_type']}/market")).json()
+    assert m["buy"]["verdict"] == "no_offers"
+    assert m["realized"]["n"] == 6 and m["realized"]["min"] == "2.90"
+    sold_urls = (
+        await session.scalars(
+            select(CollectionItem.id).where(CollectionItem.user_id == buyer["_id"])
+        )
+    ).all()
+    assert len(sold_urls) == 7  # 6 purchases + the piece bought from the peer

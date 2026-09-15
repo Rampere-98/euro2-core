@@ -34,6 +34,15 @@ class FactOut(BaseModel):
     alternatives: list[FactAlternative]
 
 
+class ValueHint(BaseModel):
+    """Value range of a coin type from its best available basis, for lists and filters."""
+
+    low: Decimal
+    high: Decimal
+    median: Decimal
+    basis: str  # sold | catalog | mintage_model | asking_only
+
+
 class TypeSummary(BaseModel):
     id: uuid.UUID
     kind: str
@@ -47,6 +56,7 @@ class TypeSummary(BaseModel):
     base_type_id: uuid.UUID | None = None  # set for editions and errors derived from a design
     issue_count: int
     image: ImageOut | None
+    value: ValueHint | None = None
 
 
 class IssueSummary(BaseModel):

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'chat.dart';
 import 'package:provider/provider.dart';
 
 import '../state.dart';
@@ -49,19 +50,39 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
       return;
     }
     String grade = 'unknown';
+    final price = TextEditingController();
+    DateTime? when;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
           title: const Text('Añadir a mi colección'),
-          content: DropdownButtonFormField<String>(
-            initialValue: grade,
-            decoration: const InputDecoration(labelText: 'Conservación'),
-            items: [
-              for (final e in kGradeLabel.entries) DropdownMenuItem(value: e.key, child: Text(e.value))
-            ],
-            onChanged: (v) => setD(() => grade = v ?? 'unknown'),
-          ),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            DropdownButtonFormField<String>(
+              initialValue: grade,
+              decoration: const InputDecoration(labelText: 'Conservación'),
+              items: [
+                for (final e in kGradeLabel.entries) DropdownMenuItem(value: e.key, child: Text(e.value))
+              ],
+              onChanged: (v) => setD(() => grade = v ?? 'unknown'),
+            ),
+            TextField(
+              controller: price,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                  labelText: 'Lo que pagaste (€, opcional)',
+                  helperText: 'Alimenta el mercado propio de Euro2: nadie más tiene este dato'),
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.event),
+              label: Text(when == null ? 'Fecha de compra (opcional)' : '${when!.toIso8601String().substring(0, 10)}'),
+              onPressed: () async {
+                final d = await showDatePicker(
+                    context: ctx, firstDate: DateTime(1999), lastDate: DateTime.now(), initialDate: DateTime.now());
+                if (d != null) setD(() => when = d);
+              },
+            ),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
             FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Añadir')),
@@ -71,7 +92,12 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
     );
     if (ok != true) return;
     try {
-      await state.api.post('/me/collection', body: {'issue_id': issue['id'], 'grade': grade});
+      await state.api.post('/me/collection', body: {
+        'issue_id': issue['id'],
+        'grade': grade,
+        if (price.text.trim().isNotEmpty) 'acquired_price': price.text.trim().replaceAll(',', '.'),
+        if (when != null) 'acquired_at': when!.toUtc().toIso8601String(),
+      });
       await state.refreshNotifications();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardada en tu colección')));
@@ -94,6 +120,7 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text(t['title'] ?? '')),
+      floatingActionButton: AskButton(typeId: t['id']),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Center(
           child: Wrap(spacing: 12, children: [

@@ -19,6 +19,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
   String? _country;
   int? _year;
   String? _category;
+  String? _price;
+  String _sort = 'year_desc';
   bool _semantic = false;
   List<Map<String, dynamic>> _items = [];
   int _total = 0;
@@ -66,6 +68,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
           if (_country case final c?) 'country': c,
           if (_year != null) 'year': '$_year',
           ...?kCategoryQuery[_category],
+          ...?kPriceQuery[_price],
+          'sort': _sort,
         });
         _items = List<Map<String, dynamic>>.from(page['items']);
         _total = page['total'];
@@ -147,6 +151,33 @@ class _CatalogScreenState extends State<CatalogScreen> {
               },
             ),
             const SizedBox(width: 12),
+            DropdownButton<String?>(
+              value: _price,
+              hint: const Text('Precio'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Cualquier precio')),
+                for (final e in kPriceLabel.entries) DropdownMenuItem(value: e.key, child: Text(e.value)),
+              ],
+              onChanged: (v) {
+                setState(() => _price = v);
+                _load();
+              },
+            ),
+            const SizedBox(width: 12),
+            DropdownButton<String>(
+              value: _sort,
+              items: const [
+                DropdownMenuItem(value: 'year_desc', child: Text('Más recientes')),
+                DropdownMenuItem(value: 'year_asc', child: Text('Más antiguas')),
+                DropdownMenuItem(value: 'value_desc', child: Text('Más valiosas')),
+                DropdownMenuItem(value: 'value_asc', child: Text('Más baratas')),
+              ],
+              onChanged: (v) {
+                setState(() => _sort = v ?? 'year_desc');
+                _load();
+              },
+            ),
+            const SizedBox(width: 12),
             Text('$_total resultados', style: Theme.of(context).textTheme.labelMedium),
           ]),
         ),
@@ -187,4 +218,20 @@ const kCategoryQuery = {
   'edition': {'category': 'edition'},
   'circulation': {'kind': 'circulation'},
   'error': {'kind': 'error'},
+};
+
+const kPriceLabel = {
+  'face': 'Hasta 3 € (valor facial)',
+  'low': '3 – 10 €',
+  'mid': '10 – 50 €',
+  'high': '50 – 300 €',
+  'top': 'Más de 300 €',
+};
+
+const kPriceQuery = {
+  'face': {'max_value': '3'},
+  'low': {'min_value': '3', 'max_value': '10'},
+  'mid': {'min_value': '10', 'max_value': '50'},
+  'high': {'min_value': '50', 'max_value': '300'},
+  'top': {'min_value': '300'},
 };

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../state.dart';
 import '../widgets.dart';
 import '../widgets/market_block.dart';
 import 'coin_detail.dart';
-import 'peer_market.dart';
 
-/// The market assistant: deals, buy, sell, peer listings, watchlist.
+/// The market assistant: deals, buy advice, sell advice, watchlist. Informational only.
 class MarketScreen extends StatelessWidget {
   const MarketScreen({super.key});
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 5,
+        length: 4,
         child: Scaffold(
           appBar: AppBar(
             title: const Text('Asistente de mercado'),
@@ -21,7 +21,6 @@ class MarketScreen extends StatelessWidget {
               Tab(icon: Icon(Icons.local_fire_department), text: 'Chollos'),
               Tab(icon: Icon(Icons.shopping_cart), text: 'Comprar'),
               Tab(icon: Icon(Icons.sell), text: 'Vender'),
-              Tab(icon: Icon(Icons.people), text: 'Coleccionistas'),
               Tab(icon: Icon(Icons.visibility), text: 'Seguimiento'),
             ]),
           ),
@@ -29,7 +28,6 @@ class MarketScreen extends StatelessWidget {
             _DealsTab(),
             _BuyTab(),
             _SellTab(),
-            PeerMarketTab(),
             _WatchTab(),
           ]),
         ),
@@ -261,41 +259,54 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _publish(Map<String, dynamic> item, Map<String, dynamic> advice) async {
-    final state = context.read<AppState>();
-    if (item['verified_at'] == null) {
-      showError(context, 'Verifica la pieza con una foto (Colección) antes de publicarla');
-      return;
-    }
-    final price = TextEditingController(text: advice['start'].toString());
-    final ok = await showDialog<bool>(
+  Future<void> _showCopy(Map<String, dynamic> advice) async {
+    final copy = Map<String, dynamic>.from(advice['listing_copy']);
+    final links = List<Map<String, dynamic>>.from(advice['external_links']);
+    await showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Publicar entre coleccionistas'),
-        content: TextField(
-          controller: price,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: 'Precio (€) — sugerido ${euro(advice['start'])}'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Publicar')),
-        ],
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.8,
+        builder: (_, controller) => ListView(controller: controller, padding: const EdgeInsets.all(16), children: [
+          Text('Texto para tu anuncio', style: Theme.of(ctx).textTheme.titleMedium),
+          const Text('Generado aquí con los datos del catálogo. Pégalo donde vendas.', style: TextStyle(fontSize: 12)),
+          for (final lang in const ['es', 'en', 'de'])
+            if (copy[lang] case final c?)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text(c['title'], style: const TextStyle(fontWeight: FontWeight.bold))),
+                      IconButton(
+                        tooltip: 'Copiar',
+                        icon: const Icon(Icons.copy),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: '${c['title']}\n\n${c['body']}'));
+                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Copiado')));
+                        },
+                      ),
+                    ]),
+                    SelectableText(c['body'], style: const TextStyle(fontSize: 13)),
+                  ]),
+                ),
+              ),
+          const SizedBox(height: 8),
+          Text('Dónde venderla', style: Theme.of(ctx).textTheme.titleMedium),
+          const Text('Compara antes con las ventas cerradas de cada plaza:', style: TextStyle(fontSize: 12)),
+          Wrap(spacing: 6, children: [
+            for (final l in links)
+              ActionChip(
+                avatar: Icon(l['kind'] == 'sold' ? Icons.history : Icons.open_in_new, size: 16),
+                label: Text(l['label']),
+                onPressed: () => openUrl(ctx, l['url']),
+              ),
+          ]),
+        ]),
       ),
     );
-    if (ok != true) return;
-    try {
-      await state.api.post('/market/listings', body: {
-        'item_id': item['id'],
-        'price': price.text.trim().replaceAll(',', '.'),
-        'accepts_trades': true,
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anuncio publicado sin comisiones')));
-      }
-    } catch (e) {
-      if (mounted) showError(context, e);
-    }
   }
 
   @override
@@ -306,7 +317,7 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
       return const Center(
           child: Padding(
               padding: EdgeInsets.all(24),
-              child: Text('Inicia sesión y añade tus monedas: te diremos a cuánto venderlas, dónde y cuánto te queda neto.',
+              child: Text('Inicia sesión y añade tus monedas: te diremos a cuánto venderlas, dónde, cuánto te queda neto y el texto del anuncio.',
                   textAlign: TextAlign.center)));
     }
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -334,7 +345,7 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
                     Text('Pide ${euro(a['start'])}, no bajes de ${euro(a['floor'])} '
                         '(${kGradeLabel[a['grade']] ?? a['grade']}; base: ${kBasisLabel[a['band']['basis']] ?? a['band']['basis']})'),
                     Text(
-                      'Neto: ${euro(a['net_euro2'])} aquí (sin comisión) · ${euro(a['net_ebay'])} en eBay'
+                      'Neto en eBay ≈ ${euro(a['net_ebay'])} (tras comisiones); en venta directa ${euro(a['net_euro2'])}'
                       '${a['expected_days'] != null ? ' · ~${a['expected_days']} días para vender' : ''}'
                       '${a['best_marketplace'] != null ? ' · mejor plaza: ${marketplaceName(a['best_marketplace'])}' : ''}',
                       style: const TextStyle(fontSize: 12),
@@ -350,7 +361,8 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
                     Align(
                       alignment: Alignment.centerRight,
                       child: FilledButton.tonal(
-                          onPressed: () => _publish(it, a), child: const Text('Publicar al precio sugerido')),
+                          onPressed: () => _showCopy(a),
+                          child: const Text('Texto del anuncio y dónde vender')),
                     ),
                   ]),
                 ),

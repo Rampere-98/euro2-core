@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'api.dart';
 import 'screens/catalog.dart';
+import 'screens/chat.dart';
 import 'screens/collection.dart';
 import 'screens/market.dart';
 import 'screens/news.dart';
@@ -76,6 +77,7 @@ class _ShellState extends State<_Shell> {
     final body = KeyedSubtree(key: _bodyKey, child: IndexedStack(index: _index, children: _screens));
     if (wide) {
       return Scaffold(
+        floatingActionButton: const AskButton(),
         body: Row(children: [
           NavigationRail(
             selectedIndex: _index,
@@ -92,6 +94,7 @@ class _ShellState extends State<_Shell> {
     }
     return Scaffold(
       body: body,
+      floatingActionButton: const AskButton(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),

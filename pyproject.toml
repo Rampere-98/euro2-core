@@ -61,3 +61,13 @@ dev = [
     "respx>=0.23.1",
     "ruff>=0.16.7",
 ]
+
+# CI and Linux servers do not need the multi-gigabyte CUDA build of torch.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

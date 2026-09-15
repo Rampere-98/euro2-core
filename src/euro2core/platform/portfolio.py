@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.domain.enums import Grade
 from euro2core.domain.models import CoinIssue, CollectionItem, PieceEvent, User
+from euro2core.platform.community_market import record_purchase
 from euro2core.platform.valuation import Valuation, valuations_for
 
 
@@ -52,6 +53,7 @@ async def add_item(
         PieceEvent(item_id=item.id, kind="registered", to_user_id=user.id, price=acquired_price)
     )
     await session.flush()
+    await record_purchase(session, item)  # what you paid is market data nobody else has
     return item
 
 

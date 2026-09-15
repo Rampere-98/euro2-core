@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.domain.enums import ListingStatus, OfferStatus, Plan, Role
 from euro2core.domain.models import CollectionItem, Listing, Notification, Offer, Rating, User
+from euro2core.platform.community_market import close_listing, record_listing
 from euro2core.platform.portfolio import transfer_item
 
 FREE_ACTIVE_LISTINGS = 3
@@ -62,6 +63,7 @@ async def create_listing(
     )
     session.add(listing)
     await session.flush()
+    await record_listing(session, listing, item)
     return listing
 
 
@@ -75,6 +77,9 @@ async def withdraw_listing(session: AsyncSession, seller: User, listing_id: uuid
     for offer in await _pending_offers(session, listing.id):
         offer.status = OfferStatus.REJECTED
         offer.decided_at = datetime.now(UTC)
+    await close_listing(
+        session, listing, await session.get(CollectionItem, listing.item_id), sold_for=None
+    )
     await session.flush()
     return listing
 
@@ -160,6 +165,7 @@ async def decide_offer(
             )
     offer.status = OfferStatus.ACCEPTED
     listing.status = ListingStatus.SOLD
+    await close_listing(session, listing, item, sold_for=offer.amount)
     for other in await _pending_offers(session, listing.id):
         if other.id != offer.id:
             other.status = OfferStatus.REJECTED

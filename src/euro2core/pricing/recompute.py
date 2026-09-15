@@ -47,7 +47,8 @@ async def recompute_issue_prices(
         for e in (
             await session.scalars(
                 select(PriceEstimate).where(
-                    PriceEstimate.issue_id == issue_id, PriceEstimate.basis != CATALOG_BASIS
+                    PriceEstimate.issue_id == issue_id,
+                    PriceEstimate.basis.not_in([CATALOG_BASIS, "mintage_model"]),
                 )
             )
         ).all()
@@ -180,3 +181,75 @@ def summarize(estimates: list[Estimate]) -> dict[str, Any]:
     for e in estimates:
         by_basis[e.basis] += 1
     return dict(by_basis)
+
+
+async def recompute_model_estimates(session: AsyncSession) -> dict[str, int]:
+    """Give every issue without real sales or a catalog value a `mintage_model` estimate
+    (grade UNC, global), calibrated from the issues that do have real sales. Issues that
+    gained a better basis lose their model row."""
+    from euro2core.domain.models import CoinIssue, CoinType
+    from euro2core.pricing.mintage_model import BASIS, METHOD_VERSION, calibrate, model_band
+
+    sold = (
+        await session.execute(
+            select(CoinIssue.mintage, PriceEstimate.p25, PriceEstimate.p75)
+            .join(CoinIssue, CoinIssue.id == PriceEstimate.issue_id)
+            .where(
+                PriceEstimate.basis == "sold",
+                PriceEstimate.region == GLOBAL_REGION,
+                PriceEstimate.grade == Grade.UNC,
+            )
+        )
+    ).all()
+    calibration = calibrate([(m, p25, p75) for m, p25, p75 in sold])
+
+    better = (
+        select(PriceEstimate.issue_id)
+        .where(PriceEstimate.basis.in_(["sold", CATALOG_BASIS]))
+        .distinct()
+    )
+    existing = {
+        e.issue_id: e
+        for e in (
+            await session.scalars(select(PriceEstimate).where(PriceEstimate.basis == BASIS))
+        ).all()
+    }
+    rows = (
+        await session.execute(
+            select(CoinIssue.id, CoinIssue.mintage, CoinIssue.finish, CoinType.mintage_total)
+            .join(CoinType, CoinType.id == CoinIssue.type_id)
+            .where(CoinIssue.id.not_in(better))
+        )
+    ).all()
+    written = 0
+    for issue_id, mintage, finish, type_mintage in rows:
+        band = model_band(mintage or type_mintage, finish, calibration)
+        row = existing.pop(issue_id, None)
+        if band is None:
+            if row is not None:
+                await session.delete(row)
+            continue
+        if row is None:
+            session.add(
+                PriceEstimate(
+                    issue_id=issue_id,
+                    grade=Grade.UNC,
+                    region=GLOBAL_REGION,
+                    window_days=0,
+                    median=band.median,
+                    p25=band.low,
+                    p75=band.high,
+                    n_obs=0,
+                    confidence="model",
+                    basis=BASIS,
+                    method_version=METHOD_VERSION,
+                )
+            )
+        else:
+            row.median, row.p25, row.p75 = band.median, band.low, band.high
+            row.computed_at = datetime.now(UTC)
+        written += 1
+    for stale in existing.values():  # a better basis appeared
+        await session.delete(stale)
+    await session.flush()
+    return {"model_estimates": written, "calibrated_buckets": len(calibration)}

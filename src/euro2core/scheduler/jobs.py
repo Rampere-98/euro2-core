@@ -25,7 +25,12 @@ from euro2core.platform.alerts import check_alerts
 from euro2core.platform.market_assistant import notify_watchers
 from euro2core.platform.news import publish_pending
 from euro2core.platform.semantic import embed_types, get_text_embedder
-from euro2core.pricing.recompute import issues_with_observations, recompute_issue_prices, summarize
+from euro2core.pricing.recompute import (
+    issues_with_observations,
+    recompute_issue_prices,
+    recompute_model_estimates,
+    summarize,
+)
 from euro2core.rarity.recompute import recompute_all_rarity
 from euro2core.sources.ebay.client import EbayClient
 from euro2core.sources.ebay.parser import (
@@ -225,6 +230,7 @@ async def run_recompute_prices(engine: AsyncEngine) -> SyncRun:
                 for basis, n in summarize(estimates).items():
                     stats["by_basis"][basis] = stats["by_basis"].get(basis, 0) + n
         async with sessions() as session:
+            stats.update(await recompute_model_estimates(session))  # key-free fallback
             stats.update(await check_alerts(session))
             stats["watch_notifications"] = await notify_watchers(session)
             await session.commit()
@@ -543,7 +549,8 @@ async def run_numista_prices(
                         CoinType.numista_type_id.is_not(None),
                         CoinIssue.id.not_in(fresh),
                     )
-                    .order_by(CoinIssue.year.desc())
+                    # scarcest first: the coins people ask about get a value on day one
+                    .order_by(CoinIssue.mintage.asc().nulls_last(), CoinIssue.year.desc())
                 )
             ).all()
         for i, (issue_id, numista_issue_id, numista_type_id) in enumerate(targets):

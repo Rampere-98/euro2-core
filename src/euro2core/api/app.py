@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from euro2core.api.routers import (
     assistant,
     auth,
+    chat,
     community,
     events,
     health,
@@ -84,6 +85,7 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
         marketplace.router,
         community.router,
         assistant.router,
+        chat.router,
     ):
         app.include_router(router)
     if WEB_BUILD_DIR.is_dir():

@@ -13,7 +13,7 @@ from euro2core.pricing.estimator import GLOBAL_REGION
 
 FACE_VALUE = Decimal("2.00")
 # preferred order of evidence; never disguise a weaker basis as a stronger one
-BASIS_RANK = {"sold": 0, "catalog": 1, "asking_only": 2}
+BASIS_RANK = {"sold": 0, "catalog": 1, "asking_only": 2, "mintage_model": 3}
 GRADE_FALLBACK = {
     Grade.UNKNOWN: (Grade.UNC, Grade.CIRCULATED, Grade.BU, Grade.PROOF),
     Grade.CIRCULATED: (Grade.UNC,),

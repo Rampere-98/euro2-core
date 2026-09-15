@@ -76,6 +76,23 @@ async def listings_for_type(
     return [_listing(r) for r in rows]
 
 
+async def model_band_for(
+    session: AsyncSession, type_id: uuid.UUID
+) -> tuple[Decimal, Decimal] | None:
+    """Lowest mintage-model band among the type's variants (the loose coin most people hold)."""
+    rows = (
+        await session.execute(
+            select(PriceEstimate.p25, PriceEstimate.p75)
+            .join(CoinIssue, CoinIssue.id == PriceEstimate.issue_id)
+            .where(CoinIssue.type_id == type_id, PriceEstimate.basis == "mintage_model")
+            .order_by(PriceEstimate.p25)
+        )
+    ).all()
+    if not rows:
+        return None
+    return rows[0][0], rows[0][1]
+
+
 async def catalog_value(session: AsyncSession, type_id: uuid.UUID) -> Decimal | None:
     """Numista catalog value for the plain uncirculated coin, if any (fallback band)."""
     rows = (
@@ -111,9 +128,15 @@ async def market_for_type(
     now = now or datetime.now(UTC)
     listings = await listings_for_type(session, coin_type.id, now=now)
     catalog = await catalog_value(session, coin_type.id)
+    model = await model_band_for(session, coin_type.id)
     coloured = coin_type.base_type_id is not None
     snap = snapshot(
-        listings, issue_year=coin_type.year, now=now, catalog=catalog, type_is_coloured=coloured
+        listings,
+        issue_year=coin_type.year,
+        now=now,
+        catalog=catalog,
+        model=model,
+        type_is_coloured=coloured,
     )
     history = monthly_history(listings, now=now)
     est_rows = (
@@ -192,8 +215,8 @@ async def deals(
     for coin_type in await _types_with_active_asks(session, now=now):
         market = await market_for_type(session, coin_type, now=now)
         snap = market.snapshot
-        if snap.band.basis == "face_value":
-            continue  # nothing to compare against
+        if snap.band.basis in ("face_value", "mintage_model"):
+            continue  # a deal needs a real reference, not a model
         weight = await _rarity_weight(session, coin_type.id)
         for offer in snap.offers:
             discount = deal_discount(offer.listing.price, snap.band)

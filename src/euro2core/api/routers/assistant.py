@@ -19,7 +19,13 @@ from euro2core.api.schemas import TypeSummary
 from euro2core.domain.enums import Grade
 from euro2core.domain.models import CoinIssue, CoinType, CollectionItem, WatchItem
 from euro2core.platform import market_assistant as ma
-from euro2core.pricing.market_intel import Listing, RangeStats, sell_advice
+from euro2core.pricing.market_intel import (
+    Listing,
+    RangeStats,
+    listing_copy,
+    search_links,
+    sell_advice,
+)
 
 router = APIRouter(tags=["assistant"])
 
@@ -102,6 +108,7 @@ class TypeMarketOut(BaseModel):
     history: list[MonthOut]
     estimate_history: list[EstimatePointOut]
     peers: list[ListingOut]
+    external_links: list[dict[str, str]]  # live and completed-sales searches to open
 
 
 class SellOut(BaseModel):
@@ -116,6 +123,8 @@ class SellOut(BaseModel):
     band: BandOut
     trend_pct: float | None
     realized: RangeOut | None
+    listing_copy: dict[str, dict[str, str]]  # es/en/de → title + body, ready to paste
+    external_links: list[dict[str, str]]
 
 
 class DealOut(BaseModel):
@@ -178,9 +187,19 @@ def _buy(market: ma.TypeMarket) -> BuyOut:
     return BuyOut(verdict=b.verdict, cheapest=cheapest, saving_pct=b.saving_pct)
 
 
-async def _market_out(session: AsyncSession, market: ma.TypeMarket, lang: str) -> TypeMarketOut:
+async def _links(session: AsyncSession, coin_type: CoinType, lang: str) -> list[dict[str, str]]:
+    summary = (await summaries_for(session, [coin_type], lang))[0]
+    return search_links(
+        title=summary.title or "", country_code=coin_type.country_code, year=coin_type.year
+    )
+
+
+async def _market_out(
+    session: AsyncSession, market: ma.TypeMarket, lang: str, coin_type: CoinType
+) -> TypeMarketOut:
     s = market.snapshot
     return TypeMarketOut(
+        external_links=await _links(session, coin_type, lang),
         realized=_range(s.realized),
         asking=_range(s.asking),
         band=BandOut(**s.band.__dict__),
@@ -232,7 +251,7 @@ async def type_market(
     coin_type = await session.get(CoinType, type_id)
     if coin_type is None:
         raise HTTPException(status_code=404, detail="type not found")
-    return await _market_out(session, await ma.market_for_type(session, coin_type), lang)
+    return await _market_out(session, await ma.market_for_type(session, coin_type), lang, coin_type)
 
 
 @router.get("/market/deals", response_model=list[DealOut])
@@ -270,7 +289,7 @@ async def market_movers(
 
 @router.get("/me/collection/{item_id}/sell-advice", response_model=SellOut)
 async def item_sell_advice(
-    item_id: uuid.UUID, user: CurrentUser, session: AsyncSession = SessionDep
+    item_id: uuid.UUID, user: CurrentUser, session: AsyncSession = SessionDep, lang: str = LangDep
 ) -> SellOut:
     item = await session.get(CollectionItem, item_id)
     if item is None or item.user_id != user.id:
@@ -279,7 +298,20 @@ async def item_sell_advice(
     coin_type = await session.get(CoinType, issue.type_id)
     market = await ma.market_for_type(session, coin_type)
     advice = sell_advice(market.snapshot, grade=Grade(item.grade))
+    summary = (await summaries_for(session, [coin_type], lang))[0]
+    copy = listing_copy(
+        title=summary.title or "",
+        country_code=coin_type.country_code,
+        year=issue.year,
+        mint_mark=issue.mint_mark,
+        finish=issue.finish.value,
+        grade=Grade(item.grade),
+        mintage=issue.mintage or coin_type.mintage_total,
+        price=advice.start,
+    )
     return SellOut(
+        listing_copy=copy,
+        external_links=await _links(session, coin_type, lang),
         start=advice.start,
         floor=advice.floor,
         grade=advice.grade.value,

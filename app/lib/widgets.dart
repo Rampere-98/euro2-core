@@ -16,9 +16,27 @@ const kBasisLabel = {
   'sold': 'ventas reales',
   'catalog': 'valor de catálogo',
   'asking_only': 'precios pedidos',
+  'mintage_model': 'estimación por tirada',
   'face_value': 'valor facial',
   'insufficient': 'sin datos',
 };
+
+const kBasisShort = {
+  'sold': 'ventas',
+  'catalog': 'catálogo',
+  'asking_only': 'pedido',
+  'mintage_model': 'est. tirada',
+  'face_value': 'facial',
+};
+
+/// "3,50 – 12 €" style range for list rows; collapses when both ends coincide.
+String euroRange(dynamic low, dynamic high) {
+  if (low == null || high == null) return '—';
+  final l = double.tryParse(low.toString()) ?? 0;
+  final h = double.tryParse(high.toString()) ?? 0;
+  String f(double v) => v >= 100 ? v.toStringAsFixed(0) : v.toStringAsFixed(2).replaceAll('.', ',');
+  return l == h ? '${f(l)} €' : '${f(l)} – ${f(h)} €';
+}
 
 const kTierLabel = {
   'exceptional': 'Excepcional',
@@ -145,17 +163,42 @@ class TypeTile extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-        leading: CoinThumb(api: api, image: type['image']),
-        title: Text(type['title'] ?? '${countryName(type['country_code'])} ${type['year']}',
-            maxLines: 2, overflow: TextOverflow.ellipsis),
-        subtitle: Text('${countryName(type['country_code'])} · ${type['year']}'
-            '${type['kind'] == 'circulation' ? ' · circulación' : ''}'
-            '${type['kind'] == 'error' ? ' · error de acuñación' : ''}'
-            '${type['mintage_total'] != null ? ' · tirada ${_fmtInt(type['mintage_total'])}' : ''}'),
-        trailing: trailing,
-        onTap: onTap,
-      );
+  Widget build(BuildContext context) {
+    final value = type['value'] as Map<String, dynamic>?;
+    return ListTile(
+      leading: CoinThumb(api: api, image: type['image']),
+      title: Text(type['title'] ?? '${countryName(type['country_code'])} ${type['year']}',
+          maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Text('${countryName(type['country_code'])} · ${type['year']}'
+          '${type['kind'] == 'circulation' ? ' · circulación' : ''}'
+          '${type['kind'] == 'error' ? ' · error de acuñación' : ''}'
+          '${type['mintage_total'] != null ? ' · tirada ${_fmtInt(type['mintage_total'])}' : ''}'),
+      trailing: trailing ?? (value == null ? null : ValueBadge(value: value)),
+      onTap: onTap,
+    );
+  }
+}
+
+/// Value range with its basis, compact enough for a list row.
+class ValueBadge extends StatelessWidget {
+  const ValueBadge({super.key, required this.value});
+  final Map<String, dynamic> value;
+
+  @override
+  Widget build(BuildContext context) {
+    final basis = value['basis'] as String;
+    final color = switch (basis) {
+      'sold' => Colors.green,
+      'catalog' => Colors.blue,
+      'mintage_model' => Theme.of(context).colorScheme.outline,
+      _ => Colors.orange,
+    };
+    return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
+      Text(euroRange(value['low'], value['high']),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: color, fontWeight: FontWeight.bold)),
+      Text(kBasisShort[basis] ?? basis, style: TextStyle(fontSize: 10, color: color)),
+    ]);
+  }
 }
 
 String _fmtInt(dynamic n) {

@@ -4,16 +4,17 @@ import uuid
 from collections import defaultdict
 from collections.abc import Iterable
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from euro2core.api.schemas import FactAlternative, FactOut, ImageOut, TypeSummary
+from euro2core.api.schemas import FactAlternative, FactOut, ImageOut, TypeSummary, ValueHint
 from euro2core.consensus.resolver import CONFLICT_MIN_RANK, normalize
 from euro2core.domain.models import (
     CoinImage,
     CoinIssue,
     CoinType,
     FactClaim,
+    PriceEstimate,
     Source,
     TextTranslation,
 )
@@ -153,12 +154,72 @@ def image_out(img: CoinImage, *, borrowed: bool = False) -> ImageOut:
     )
 
 
+BASIS_ORDER = case(
+    (PriceEstimate.basis == "sold", 0),
+    (PriceEstimate.basis == "catalog", 1),
+    (PriceEstimate.basis == "mintage_model", 2),
+    (PriceEstimate.basis == "asking_only", 3),
+    else_=9,
+)
+
+
+def type_value_subquery():
+    """One value range per coin type from its best available basis: the lowest p25 and the
+    highest p75 across the variants that share that basis (loose coin → proof)."""
+    ranked = (
+        select(
+            CoinIssue.type_id.label("type_id"),
+            PriceEstimate.p25.label("p25"),
+            PriceEstimate.p75.label("p75"),
+            PriceEstimate.median.label("median"),
+            PriceEstimate.basis.label("basis"),
+            BASIS_ORDER.label("rank"),
+            func.min(BASIS_ORDER).over(partition_by=CoinIssue.type_id).label("best"),
+        )
+        .join(CoinIssue, CoinIssue.id == PriceEstimate.issue_id)
+        .where(PriceEstimate.region == "global", PriceEstimate.median.is_not(None))
+        .subquery()
+    )
+    return (
+        select(
+            ranked.c.type_id,
+            func.min(ranked.c.p25).label("low"),
+            func.max(ranked.c.p75).label("high"),
+            func.min(ranked.c.median).label("median"),
+            func.min(ranked.c.basis).label("basis"),
+        )
+        .where(ranked.c.rank == ranked.c.best)
+        .group_by(ranked.c.type_id)
+        .subquery()
+    )
+
+
+async def values_for_types(
+    session: AsyncSession, type_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, ValueHint]:
+    if not type_ids:
+        return {}
+    v = type_value_subquery()
+    rows = (
+        await session.execute(
+            select(v.c.type_id, v.c.low, v.c.high, v.c.median, v.c.basis).where(
+                v.c.type_id.in_(type_ids)
+            )
+        )
+    ).all()
+    return {
+        type_id: ValueHint(low=low, high=high, median=median, basis=basis)
+        for type_id, low, high, median, basis in rows
+    }
+
+
 async def summaries_for(
     session: AsyncSession, types: list[CoinType], lang: str
 ) -> list[TypeSummary]:
     ids = [t.id for t in types]
     texts = await translations_for(session, "coin_type", ids, lang)
     images = await images_for_types(session, ids)
+    values = await values_for_types(session, ids)
     counts = (
         dict(
             (
@@ -186,6 +247,7 @@ async def summaries_for(
             base_type_id=t.base_type_id,
             issue_count=counts.get(t.id, 0),
             image=next(iter(images.get(t.id, [])), None),
+            value=values.get(t.id),
         )
         for t in types
     ]

@@ -304,3 +304,18 @@ async def test_special_edition_without_photo_shows_its_base_design_labelled(
     by_id = {t["id"]: t for t in listed["items"]}
     assert by_id[str(edition.id)]["image"]["borrowed"] is True
     assert by_id[str(catalog["type_id"])]["image"]["borrowed"] is False
+
+
+async def test_list_shows_a_value_hint_and_filters_and_sorts_by_price(client, catalog, session):
+    from euro2core.pricing.recompute import recompute_model_estimates
+
+    await recompute_model_estimates(session)  # every variant without sales gets a model band
+    await session.commit()
+    listed = (await client.get("/types", params={"country": "DE", "year": 2006})).json()
+    de = next(t for t in listed["items"] if t["id"] == str(catalog["type_id"]))
+    assert de["value"]["basis"] == "sold"  # the fixture has three real sales on mint A
+    assert de["value"]["median"] == "3.50"
+    cheap = (await client.get("/types", params={"max_value": "1"})).json()
+    assert cheap["total"] == 0
+    pricey = (await client.get("/types", params={"min_value": "3", "sort": "value_desc"})).json()
+    assert pricey["total"] >= 1 and pricey["items"][0]["value"] is not None
