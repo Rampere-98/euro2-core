@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from euro2core.domain.enums import Grade
+from euro2core.domain.enums import CoinKind, Finish, Grade
 from euro2core.domain.models import (
     DomainEvent,
     EstimateHistory,
@@ -27,6 +27,7 @@ from euro2core.pricing.estimator import (
 log = logging.getLogger(__name__)
 
 SPIKE_THRESHOLD = 0.30
+COMMON_DESIGN_MINTAGE = 10_000_000  # a circulation design nobody counted is not scarce
 CATALOG_BASIS = "catalog"  # maintained by the numista_prices job, not by observations
 
 
@@ -216,14 +217,72 @@ async def recompute_model_estimates(session: AsyncSession) -> dict[str, int]:
     }
     rows = (
         await session.execute(
-            select(CoinIssue.id, CoinIssue.mintage, CoinIssue.finish, CoinType.mintage_total)
+            select(
+                CoinIssue.id,
+                CoinIssue.mintage,
+                CoinIssue.finish,
+                CoinType.id,
+                CoinType.mintage_total,
+                CoinType.base_type_id,
+                CoinType.kind,
+            )
             .join(CoinType, CoinType.id == CoinIssue.type_id)
             .where(CoinIssue.id.not_in(better))
         )
     ).all()
+    # Scarcity belongs to the design, not to the packaging: a BU coincard of a 500 000-coin
+    # emission is not a 10 000-coin rarity. Use the emission's total (or the sum of its
+    # variants), and the base design's total for coloured/hologram editions.
+    # Circulation designs are struck by the million; only the circulation strike's own
+    # mintage (Vatican, Monaco, San Marino) can make one scarce — sets and proofs cannot.
+    totals: dict[uuid.UUID, int | None] = {}
+    for _, mintage, _finish, type_id, type_total, _, kind in rows:
+        if kind == CoinKind.CIRCULATION:
+            continue  # handled per issue below
+        if type_total:
+            totals[type_id] = type_total
+        elif mintage:
+            totals[type_id] = (totals.get(type_id) or 0) + mintage
+        else:
+            totals.setdefault(type_id, None)
+    base_totals = dict(
+        (
+            await session.execute(
+                select(CoinType.id, CoinType.mintage_total).where(
+                    CoinType.id.in_({b for *_, b, _ in rows if b is not None})
+                )
+            )
+        ).all()
+    )
+    # An edition (coloured, hologram) that could not be tied to its base design must not be
+    # priced as a rare design: its small print run says nothing about demand.
+    from euro2core.catalog.editions import is_special_edition
+    from euro2core.domain.models import TextTranslation
+
+    titles = dict(
+        (
+            await session.execute(
+                select(TextTranslation.entity_id, TextTranslation.text).where(
+                    TextTranslation.entity == "coin_type",
+                    TextTranslation.field == "title",
+                    TextTranslation.lang == "en",
+                    TextTranslation.entity_id.in_({t for _, _, _, t, _, _, _ in rows}),
+                )
+            )
+        ).all()
+    )
     written = 0
-    for issue_id, mintage, finish, type_mintage in rows:
-        band = model_band(mintage or type_mintage, finish, calibration)
+    for issue_id, mintage, finish, type_id, _type_total, base_id, kind in rows:
+        if kind == CoinKind.CIRCULATION:
+            # each year stands alone: 2014 struck for sets only is scarce, 2016 by the million
+            scarce_strike = finish == Finish.CIRCULATION and mintage
+            design = mintage if scarce_strike else COMMON_DESIGN_MINTAGE
+        elif base_id is not None:
+            design = base_totals.get(base_id) or totals.get(type_id)
+        else:
+            design = totals.get(type_id)
+        orphan_edition = base_id is None and is_special_edition(titles.get(type_id, ""))
+        band = None if orphan_edition else model_band(design, finish, calibration)
         row = existing.pop(issue_id, None)
         if band is None:
             if row is not None:

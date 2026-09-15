@@ -164,8 +164,10 @@ BASIS_ORDER = case(
 
 
 def type_value_subquery():
-    """One value range per coin type from its best available basis: the lowest p25 and the
-    highest p75 across the variants that share that basis (loose coin → proof)."""
+    """One value range per coin type: the estimate of its reference variant — best basis
+    available, then the largest mintage (the loose coin most people hold). Proof and other
+    scarce variants are shown on the coin page, not in list rows."""
+    mintage = func.coalesce(CoinIssue.mintage, CoinType.mintage_total)
     ranked = (
         select(
             CoinIssue.type_id.label("type_id"),
@@ -173,23 +175,27 @@ def type_value_subquery():
             PriceEstimate.p75.label("p75"),
             PriceEstimate.median.label("median"),
             PriceEstimate.basis.label("basis"),
-            BASIS_ORDER.label("rank"),
-            func.min(BASIS_ORDER).over(partition_by=CoinIssue.type_id).label("best"),
+            func.row_number()
+            .over(
+                partition_by=CoinIssue.type_id,
+                order_by=(BASIS_ORDER, mintage.desc().nulls_last(), PriceEstimate.median),
+            )
+            .label("pos"),
         )
         .join(CoinIssue, CoinIssue.id == PriceEstimate.issue_id)
+        .join(CoinType, CoinType.id == CoinIssue.type_id)
         .where(PriceEstimate.region == "global", PriceEstimate.median.is_not(None))
         .subquery()
     )
     return (
         select(
             ranked.c.type_id,
-            func.min(ranked.c.p25).label("low"),
-            func.max(ranked.c.p75).label("high"),
-            func.min(ranked.c.median).label("median"),
-            func.min(ranked.c.basis).label("basis"),
+            ranked.c.p25.label("low"),
+            ranked.c.p75.label("high"),
+            ranked.c.median.label("median"),
+            ranked.c.basis.label("basis"),
         )
-        .where(ranked.c.rank == ranked.c.best)
-        .group_by(ranked.c.type_id)
+        .where(ranked.c.pos == 1)
         .subquery()
     )
 

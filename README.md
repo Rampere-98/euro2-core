@@ -1,9 +1,16 @@
 # euro2-core
 
 Open numismatics platform for **2 euro coins**: a self-updating catalog of every 2€ coin
-(commemorative and circulation, with mint marks, finishes and documented errors), real
-market prices from actual sales, an auditable rarity index, identification by photo, a
-collector portfolio with signed provenance, a peer-to-peer marketplace and a Flutter app.
+(commemorative and circulation, with mint marks, finishes and documented errors), honest
+values (real sales when they exist, labelled estimates when they do not), an auditable rarity
+index, identification by photo, a collector portfolio with signed provenance, a market
+assistant for buyers and sellers, a local AI chat, and a Flutter app. Informational only: the
+app tells you what a coin is, what it is worth and where to look — it does not sell anything.
+
+**Nobody needs an API key.** The service runs on the owner's machine (`euro2 serve`) and the
+app reads from it; ECB pages need no key, values fall back to the app's own mintage model and
+to what collectors record, and the assistant runs local models (CLIP, e5). Optional keys in
+the owner's `.env` (Numista, eBay) only enrich the data centrally, within their own quotas.
 
 | Module | What it does | Where |
 |---|---|---|
@@ -12,7 +19,9 @@ collector portfolio with signed provenance, a peer-to-peer marketplace and a Flu
 | C · Knowledge | semantic search in any language, automatic news, expert error reports | `platform/semantic.py`, `platform/news.py`, `platform/community.py` |
 | D · Portfolio | collection, valuation by basis, achievements, price alerts (Pro) | `platform/portfolio.py`, `platform/achievements.py`, `platform/alerts.py` |
 | E · Marketplace | listings of verified pieces, offers, trades, reputation, certificates | `platform/marketplace.py`, `platform/provenance.py` |
-| F · Market assistant | reliability of listings, fair band, deals, buy/sell advice, price chart, watchlist | `pricing/reliability.py`, `pricing/market_intel.py`, `platform/market_assistant.py` |
+| F · Market assistant | reliability of listings, fair band, deals, buy/sell advice, price chart, watchlist, listing copy | `pricing/reliability.py`, `pricing/market_intel.py`, `platform/market_assistant.py` |
+| G · Local assistant | chat that answers value/rarity/buy/sell/glossary from the catalog, no external service | `platform/chat_brain.py`, `platform/chat.py` |
+| Key-free values | mintage model calibrated by real sales; collectors' purchases as market data | `pricing/mintage_model.py`, `platform/community_market.py` |
 | App | Flutter (web/Android/iOS), Spanish UI, served by the API at `/app` | `app/` |
 
 ## What makes it different
@@ -49,6 +58,12 @@ uv run euro2 sync auctions  # ended auctions -> realized sales
 uv run euro2 recompute prices
 uv run euro2 recompute rarity
 uv run euro2 serve          # API (docs at /docs) + scheduler on http://localhost:8000
+```
+
+To keep it running unattended on Windows (starts at logon, restarts if it stops):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-autostart.ps1
 ```
 
 If Windows App Control blocks the generated `euro2.exe` launcher (error 4551), use
@@ -191,3 +206,28 @@ free euro2 marketplace, expected days, hold hint), a deals feed and movers.
 median) and the estimate trail (`estimate_history`, appended whenever a recompute changes a
 value). Watching a coin (`/me/watchlist`, free) turns deals and > 20 % moves into notifications
 after every price recompute. Price alerts are free for every user.
+
+## Values without any API key
+
+Every variant always has a value with an explicit basis, in this order:
+
+1. `sold` — real sales (eBay via API when configured, and **purchases collectors record on
+   their own pieces**, which need no third party at all).
+2. `catalog` — Numista catalog value, when the owner has a key.
+3. `mintage_model` — the app's own estimate from the design's mintage (`pricing/mintage_model.py`):
+   explicit buckets from the scarcest (< 15 000 → 800–3 000 €) to the commonest (≥ 8 M →
+   2,20–3,50 €), scaled by finish. Whenever a bucket accumulates five coins with real sales the
+   bucket recalibrates itself from them. Circulation designs are treated as common unless the
+   circulation strike itself is scarce; coloured/hologram editions inherit their base design.
+4. `face_value` — 2 €, only when even the mintage is unknown.
+
+The catalog rows show the reference variant's range with its basis; `GET /types` filters by
+`min_value`/`max_value` and sorts by value.
+
+## Local assistant (chat)
+
+`POST /assistant/chat {"message": "¿cuánto vale la de Mónaco 2007?"}` answers from the
+database: intent by rules (Spanish and English), local e5 embeddings when rules are unsure,
+coins resolved from country/year/theme with the same local semantic index as search. It covers
+value, rarity, where it is for sale, what to ask when selling, today's deals, news, the user's
+collection and a numismatic glossary. Nothing leaves the machine.

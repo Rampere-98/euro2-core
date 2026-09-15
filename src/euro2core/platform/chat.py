@@ -73,6 +73,9 @@ _T = {
         "{n} ventas en {days} días). Rango justo {low}–{high} €.{trend}{offer}",
         "value_catalog": "{title} ({country} {year}): sin ventas reales registradas; valor de "
         "catálogo aproximado {low}–{high} €.{offer}",
+        "value_model": "{title} ({country} {year}): sin ventas registradas todavía; por su tirada "
+        "({mintage}) estimo {low}–{high} €. Es una estimación propia, no un precio de mercado."
+        "{offer}",
         "value_face": "{title} ({country} {year}): sin ventas ni valor de catálogo todavía; hoy "
         "su referencia es el valor facial (2 €).{offer}",
         "trend_up": " Tendencia: +{t} % en 90 días.",
@@ -130,6 +133,8 @@ _T = {
         "sales in {days} days). Fair band €{low}–{high}.{trend}{offer}",
         "value_catalog": "{title} ({country} {year}): no real sales on record; approximate "
         "catalog value €{low}–{high}.{offer}",
+        "value_model": "{title} ({country} {year}): no recorded sales yet; from its mintage "
+        "({mintage}) I estimate €{low}–{high}. An in-app estimate, not a market price.{offer}",
         "value_face": "{title} ({country} {year}): no sales or catalog value yet; today its "
         "reference is face value (€2).{offer}",
         "trend_up": " Trend: +{t}% over 90 days.",
@@ -420,6 +425,16 @@ def _value(t, lang, coin, title, country, market: ma.TypeMarket) -> Reply:
             year=coin.year,
             low=s.band.low,
             high=s.band.high,
+            offer=offer,
+        )
+    elif s.band.basis == "mintage_model":
+        text = t["value_model"].format(
+            title=title,
+            country=country,
+            year=coin.year,
+            low=s.band.low,
+            high=s.band.high,
+            mintage=_fmt(coin.mintage_total),
             offer=offer,
         )
     else:
