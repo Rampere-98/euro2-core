@@ -266,3 +266,41 @@ async def test_has_conflict_ignores_formatting_differences(client, catalog, sess
 async def test_search_treats_sql_wildcards_literally(client, catalog):
     assert (await client.get("/search", params={"q": "%_%"})).json()["total"] == 0
     assert (await client.get("/search", params={"q": "schleswig"})).json()["total"] == 1
+
+
+async def test_special_edition_without_photo_shows_its_base_design_labelled(
+    client, catalog, session
+):
+    from euro2core.domain.enums import CoinKind, ImageSide, VerificationStatus
+    from euro2core.domain.models import CoinImage, CoinType
+
+    session.add(
+        CoinImage(
+            type_id=catalog["type_id"],
+            side=ImageSide.OBVERSE,
+            source_url="https://ecb.example/de2006.jpg",
+            local_path="de2006.jpg",
+            sha256="1" * 64,
+            author="European Central Bank",
+        )
+    )
+    edition = CoinType(
+        kind=CoinKind.COMMEMORATIVE,
+        country_code="DE",
+        year=2006,
+        numista_type_id=999001,
+        base_type_id=catalog["type_id"],
+        verification_status=VerificationStatus.DOCUMENTED,
+    )
+    session.add(edition)
+    await session.commit()
+
+    detail = (await client.get(f"/types/{edition.id}")).json()
+    assert len(detail["images"]) == 1
+    assert detail["images"][0]["source_url"] == "https://ecb.example/de2006.jpg"
+    assert detail["images"][0]["borrowed"] is True
+    assert detail["base_type_id"] == str(catalog["type_id"])
+    listed = (await client.get("/types", params={"country": "DE", "year": 2006})).json()
+    by_id = {t["id"]: t for t in listed["items"]}
+    assert by_id[str(edition.id)]["image"]["borrowed"] is True
+    assert by_id[str(catalog["type_id"])]["image"]["borrowed"] is False

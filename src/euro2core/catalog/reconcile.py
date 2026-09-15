@@ -15,6 +15,7 @@ from euro2core.domain.models import (
     CoinType,
     DomainEvent,
     FactClaim,
+    MarketObservation,
     TextTranslation,
 )
 from euro2core.sources.linker import link_score
@@ -130,6 +131,7 @@ async def merge_types(session: AsyncSession, *, keep: CoinType, drop: CoinType) 
     drop.numista_type_id = None
     await session.flush()
     keep.numista_type_id = numista_id
+    await _retire_colliding_placeholders(session, keep=keep, drop=drop)
     await session.execute(
         update(CoinIssue).where(CoinIssue.type_id == drop.id).values(type_id=keep.id)
     )
@@ -170,6 +172,36 @@ async def merge_types(session: AsyncSession, *, keep: CoinType, drop: CoinType) 
             payload={"numista_type_id": numista_id, "ecb_ref": keep.ecb_ref},
         )
     )
+
+
+async def _retire_colliding_placeholders(
+    session: AsyncSession, *, keep: CoinType, drop: CoinType
+) -> None:
+    """An ECB-only type carries a placeholder issue (year, no mint mark, circulation, loose).
+    When Numista describes exactly that variant, the placeholder would violate the issue key
+    once moved: hand its observations to the real issue and delete it first."""
+    incoming = (await session.scalars(select(CoinIssue).where(CoinIssue.type_id == drop.id))).all()
+    by_key = {(i.year, i.mint_mark, i.finish, i.packaging): i for i in incoming}
+    placeholders = (
+        await session.scalars(
+            select(CoinIssue).where(
+                CoinIssue.type_id == keep.id, CoinIssue.numista_issue_id.is_(None)
+            )
+        )
+    ).all()
+    for placeholder in placeholders:
+        real = by_key.get(
+            (placeholder.year, placeholder.mint_mark, placeholder.finish, placeholder.packaging)
+        )
+        if real is None:
+            continue
+        await session.execute(
+            update(MarketObservation)
+            .where(MarketObservation.issue_id == placeholder.id)
+            .values(issue_id=real.id)
+        )
+        await session.delete(placeholder)
+    await session.flush()
 
 
 async def _move_translations(session: AsyncSession, keep: CoinType, drop: CoinType) -> None:

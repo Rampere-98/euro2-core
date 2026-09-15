@@ -52,7 +52,8 @@ async def test_error_type_must_reference_its_base_type(session):
         await session.flush()
 
 
-async def test_normal_type_must_not_reference_a_base_type(session):
+async def test_a_commemorative_may_derive_from_a_base_design(session):
+    """Special editions (coloured, hologram) point at the plain emission; only errors must."""
     await _germany(session)
     base = CoinType(kind=CoinKind.COMMEMORATIVE, country_code="DE", year=2008)
     session.add(base)
@@ -60,8 +61,7 @@ async def test_normal_type_must_not_reference_a_base_type(session):
     session.add(
         CoinType(kind=CoinKind.COMMEMORATIVE, country_code="DE", year=2008, base_type_id=base.id)
     )
-    with pytest.raises(IntegrityError):
-        await session.flush()
+    await session.flush()
 
 
 async def test_unknown_country_is_rejected(session):

@@ -62,18 +62,35 @@ class CoinThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = image?['url'] as String?;
-    return ClipOval(
+    final borrowed = image?['borrowed'] == true;
+    final thumb = ClipOval(
       child: SizedBox(
         width: size,
         height: size,
         child: url == null
-            ? Container(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Icon(Icons.euro, size: size * 0.5),
+            ? Tooltip(
+                message: 'Sin foto oficial todavía (el BCE aún no la ha publicado)',
+                child: Container(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Icon(Icons.hide_image_outlined, size: size * 0.45),
+                ),
               )
             : Image.network(api.imageUrl(url), fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => const Icon(Icons.euro)),
       ),
+    );
+    if (!borrowed) return thumb;
+    // The photo is of the plain design this edition derives from (coloured, hologram, error).
+    return Tooltip(
+      message: 'Foto del diseño base; esta edición es especial',
+      child: Stack(children: [
+        Opacity(opacity: 0.75, child: thumb),
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: Icon(Icons.auto_fix_high, size: size * 0.3, color: Theme.of(context).colorScheme.primary),
+        ),
+      ]),
     );
   }
 }

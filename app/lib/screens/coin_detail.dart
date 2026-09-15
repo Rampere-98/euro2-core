@@ -104,8 +104,21 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
                 if (img['author'] != null)
                   Text('© ${img['author']}', style: Theme.of(context).textTheme.labelSmall),
               ]),
+            if (images.isEmpty)
+              Column(mainAxisSize: MainAxisSize.min, children: [
+                CoinThumb(api: api, image: null, size: 180),
+                const SizedBox(height: 4),
+                const Text('Sin foto oficial todavía: el BCE aún no la ha publicado.',
+                    style: TextStyle(fontSize: 12), textAlign: TextAlign.center),
+              ]),
           ]),
         ),
+        if (images.any((i) => i['borrowed'] == true))
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text('Se muestra el diseño base: esta es una edición especial (coloreada, holograma…) de esa moneda.',
+                style: TextStyle(fontSize: 12), textAlign: TextAlign.center),
+          ),
         const SizedBox(height: 12),
         Text('${countryName(t['country_code'])} · ${t['year']}', style: Theme.of(context).textTheme.titleMedium),
         Wrap(children: [

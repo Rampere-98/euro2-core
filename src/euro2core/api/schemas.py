@@ -13,6 +13,9 @@ class ImageOut(BaseModel):
     source_url: str
     author: str | None
     license: str | None
+    # True when the photo belongs to the base design this coin derives from (a coloured or
+    # hologram edition, a minting error) because no photo of the coin itself exists
+    borrowed: bool = False
 
 
 class FactAlternative(BaseModel):

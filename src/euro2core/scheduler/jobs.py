@@ -10,6 +10,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from euro2core.catalog.editions import link_editions_to_base
 from euro2core.catalog.ingest_ebay import close_auction, ingest_listings
 from euro2core.catalog.ingest_ecb import ingest_ecb_entries
 from euro2core.catalog.ingest_national import ingest_national_sides
@@ -598,6 +599,9 @@ async def run_reconcile(engine: AsyncEngine) -> SyncRun:
     ) -> None:
         async with sessions() as session:
             stats.update(await link_by_elimination(session))
+            editions = await link_editions_to_base(session)
+            stats["editions_linked"] = editions["linked"]
+            stats["editions_unmatched"] = editions["unmatched"]
             await session.commit()
 
     return await _run_job(engine, "reconcile", body, stats)

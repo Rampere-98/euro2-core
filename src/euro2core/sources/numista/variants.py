@@ -7,7 +7,7 @@ _COLOURED = re.compile(
     r";\s*[a-z ]*(yellow|red|blue) star[^)]*",
     re.IGNORECASE,
 )
-_HOLOGRAM = re.compile(r"\s*-\s*hologram version", re.IGNORECASE)
+_HOLOGRAM = re.compile(r"\s*[-;]\s*hologram version", re.IGNORECASE)
 _CLASSIC = re.compile(r"\s*-\s*classic version", re.IGNORECASE)
 
 

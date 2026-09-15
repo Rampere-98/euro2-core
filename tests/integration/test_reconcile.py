@@ -217,3 +217,164 @@ async def test_leftover_numista_type_without_ecb_counterpart_is_kept(session):
 )
 def test_map_variants_are_circulation_designs(title, object_type, kind):
     assert classify_kind(title, object_type) == kind
+
+
+async def test_special_editions_point_to_the_plain_emission_they_colour(session):
+    from euro2core.catalog.editions import link_editions_to_base
+    from euro2core.domain.models import CoinImage
+
+    await ensure_reference_data(session)
+    await ingest_ecb_entries(
+        session, [ecb("Olympic Games Paris 2024", year=2024, country="FR")], fetcher=None
+    )
+    base = (await session.scalars(select(CoinType))).one()
+    session.add(
+        CoinImage(
+            type_id=base.id,
+            side="obverse",
+            local_path="x.jpg",
+            source_url="https://ecb.example/fr2024.jpg",
+            author="European Central Bank",
+        )
+    )
+    for type_id, title in (
+        (419643, "2 Euros (Olympic Games, Paris; Coloured)"),
+        (419699, "2 Euros (Olympic Games, Paris)"),  # plain Numista record of the same coin
+    ):
+        await ingest_numista_type(
+            session,
+            parse_type(numista(type_id, title, "Paris Olympics", year=2024, country="FR")),
+            [],
+            translations=[],
+            fetcher=None,
+        )
+    await session.commit()
+    await link_by_elimination(session)  # plain record merges into the ECB emission
+    await session.commit()
+
+    stats = await link_editions_to_base(session)
+    await session.commit()
+
+    assert stats == {"linked": 1, "unmatched": 0}
+    edition = (await session.scalars(select(CoinType).where(CoinType.ecb_ref.is_(None)))).one()
+    assert edition.numista_type_id == 419643
+    assert edition.base_type_id == base.id
+    # idempotent
+    assert await link_editions_to_base(session) == {"linked": 0, "unmatched": 0}
+
+
+async def test_edition_without_a_plausible_base_stays_unlinked(session):
+    from euro2core.catalog.editions import link_editions_to_base
+
+    await ensure_reference_data(session)
+    await ingest_ecb_entries(
+        session, [ecb("Treaty of Rome", year=2015, country="FR")], fetcher=None
+    )
+    await ingest_numista_type(
+        session,
+        parse_type(
+            numista(
+                78890,
+                "2 Euros (30 Years of European Union Flag; Coloured)",
+                None,
+                year=2015,
+                country="FR",
+            )
+        ),
+        [],
+        translations=[],
+        fetcher=None,
+    )
+    await session.commit()
+    assert await link_editions_to_base(session) == {"linked": 0, "unmatched": 1}
+
+
+async def test_merge_survives_a_numista_issue_that_equals_the_ecb_placeholder(session):
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    from euro2core.catalog.seed import get_source
+    from euro2core.domain.enums import Grade, ObservationKind
+    from euro2core.domain.models import MarketObservation
+
+    await ensure_reference_data(session)
+    await ingest_ecb_entries(
+        session, [ecb("Ten years of the euro", year=2012, country="FR")], fetcher=None
+    )
+    placeholder = (await session.scalars(select(CoinIssue))).one()
+    ebay = await get_source(session, "ebay")
+    session.add(
+        MarketObservation(
+            issue_id=placeholder.id,
+            source_id=ebay.id,
+            marketplace="EBAY_FR",
+            observation_kind=ObservationKind.SOLD,
+            price=Decimal("3"),
+            grade=Grade.UNC,
+            listing_id="x1",
+            listing_url="https://ebay.fr/itm/x1",
+            title_raw="2 euro France 2012",
+            match_confidence=0.9,
+            observed_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    )
+    # Numista knows one loose circulation issue without mint mark: the same key as the placeholder
+    await ingest_numista_type(
+        session,
+        parse_type(
+            numista(
+                30000,
+                "2 Euros (Decade of Common Currency)",
+                None,
+                year=2012,
+                country="FR",
+            )
+        ),
+        [parse_issue({"id": 777, "year": 2012, "mintage": 10_000_000})],
+        translations=[],
+        fetcher=None,
+    )
+    await session.commit()
+
+    stats = await link_by_elimination(session)
+    await session.commit()
+
+    assert stats["merged"] == 1
+    issue = (await session.scalars(select(CoinIssue))).one()
+    assert issue.numista_issue_id == 777
+    obs = (await session.scalars(select(MarketObservation))).one()
+    assert obs.issue_id == issue.id  # the observation followed the coin
+
+
+async def test_second_numista_listing_of_a_linked_emission_points_to_it(session):
+    from euro2core.catalog.editions import link_editions_to_base
+
+    await ensure_reference_data(session)
+    await ingest_ecb_entries(
+        session,
+        [ecb("French Presidency of the Council of the European Union", year=2008, country="FR")],
+        fetcher=None,
+    )
+    for type_id in (183033, 3561):  # Numista lists the emission twice (different mints)
+        await ingest_numista_type(
+            session,
+            parse_type(
+                numista(
+                    type_id,
+                    "2 Euros (French Presidency of the European Union)",
+                    None,
+                    year=2008,
+                    country="FR",
+                )
+            ),
+            [],
+            translations=[],
+            fetcher=None,
+        )
+    await session.commit()
+    ecb_type = (await session.scalars(select(CoinType).where(CoinType.ecb_ref.is_not(None)))).one()
+    assert ecb_type.numista_type_id is not None  # the fuzzy link took the first listing
+    leftover = (await session.scalars(select(CoinType).where(CoinType.ecb_ref.is_(None)))).one()
+
+    assert await link_editions_to_base(session) == {"linked": 1, "unmatched": 0}
+    assert leftover.base_type_id == ecb_type.id

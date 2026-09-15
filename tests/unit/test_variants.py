@@ -20,3 +20,9 @@ def test_base_title_strips_edition_suffixes():
         == "2 Euros - Henri I (Feierstëppler)"
     )
     assert base_title("2 Euros (Tarxien Temples)") == "2 Euros (Tarxien Temples)"
+
+
+def test_hologram_after_a_semicolon_is_an_edition_too():
+    title = "2 Euro - Henri I (Grand Duke Henri ascension; Hologram version)"
+    assert variant_kind(title) == "hologram"
+    assert base_title(title) == "2 Euro - Henri I (Grand Duke Henri ascension)"

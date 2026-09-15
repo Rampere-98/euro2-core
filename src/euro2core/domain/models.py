@@ -114,8 +114,9 @@ class CoinType(Base):
 
     __table_args__ = (
         CheckConstraint("year BETWEEN 1999 AND 2100", name="ck_coin_type_year"),
+        # errors always derive from a base design; special editions (coloured, hologram) may too
         CheckConstraint(
-            "(kind = 'error') = (base_type_id IS NOT NULL)", name="ck_coin_type_error_has_base"
+            "kind <> 'error' OR base_type_id IS NOT NULL", name="ck_coin_type_error_has_base"
         ),
         Index("ix_coin_type_country_year", "country_code", "year"),
     )

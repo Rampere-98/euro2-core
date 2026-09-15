@@ -109,6 +109,30 @@ async def images_for_types(
     out: dict[uuid.UUID, list[ImageOut]] = defaultdict(list)
     for img in rows:
         out[img.type_id].append(image_out(img))
+    # a derived type (special edition, error) without its own photo shows the base design
+    bases = (
+        await session.execute(
+            select(CoinType.id, CoinType.base_type_id).where(
+                CoinType.id.in_([t for t in type_ids if t not in out]),
+                CoinType.base_type_id.is_not(None),
+            )
+        )
+    ).all()
+    if bases:
+        base_rows = (
+            await session.scalars(
+                select(CoinImage)
+                .where(
+                    CoinImage.type_id.in_({b for _, b in bases}), CoinImage.local_path.is_not(None)
+                )
+                .order_by(CoinImage.fetched_at)
+            )
+        ).all()
+        base_images: dict[uuid.UUID, list[CoinImage]] = defaultdict(list)
+        for img in base_rows:
+            base_images[img.type_id].append(img)
+        for type_id, base_id in bases:
+            out[type_id] = [image_out(img, borrowed=True) for img in base_images.get(base_id, [])]
     return out
 
 
@@ -117,8 +141,9 @@ async def images_for_issue(session: AsyncSession, issue_id: uuid.UUID) -> list[I
     return [image_out(i) for i in rows]
 
 
-def image_out(img: CoinImage) -> ImageOut:
+def image_out(img: CoinImage, *, borrowed: bool = False) -> ImageOut:
     return ImageOut(
+        borrowed=borrowed,
         id=img.id,
         side=img.side.value,
         url=f"/images/{img.id}" if img.local_path else None,
