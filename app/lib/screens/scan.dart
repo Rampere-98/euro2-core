@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../device.dart';
+import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'coin_detail.dart';
@@ -52,7 +54,7 @@ class _ScanScreenState extends State<ScanScreen> {
     final photo = _photo;
     if (photo == null) return;
     final cropped = await Navigator.of(context)
-        .push<Uint8List>(MaterialPageRoute(builder: (_) => CoinCropScreen(photo: photo)));
+        .push<Uint8List>(SwipeBackRoute(builder: (_) => CoinCropScreen(photo: photo)));
     if (cropped != null && mounted) await _identify(cropped, guided: true);
   }
 
@@ -98,14 +100,14 @@ class _ScanScreenState extends State<ScanScreen> {
             child: FilledButton.icon(
                 onPressed: _busy ? null : () => _pick(ImageSource.camera),
                 icon: const Icon(Icons.photo_camera),
-                label: const Text('Cámara')),
+                label: Text(Device.isTouch ? 'Hacer foto' : 'Cámara')),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: OutlinedButton.icon(
                 onPressed: _busy ? null : () => _pick(ImageSource.gallery),
                 icon: const Icon(Icons.photo_library),
-                label: const Text('Galería')),
+                label: Text(Device.isTouch ? 'Galería' : 'Elegir imagen')),
           ),
         ]),
         const SizedBox(height: 16),
@@ -154,7 +156,7 @@ class _CandidateCard extends StatelessWidget {
           type: type,
           trailing: Chip2(label, color: color),
           onTap: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: type['id']))),
+              .push(SwipeBackRoute(builder: (_) => CoinDetailScreen(typeId: type['id']))),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),

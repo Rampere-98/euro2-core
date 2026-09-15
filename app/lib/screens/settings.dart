@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../device.dart';
 import '../install.dart';
+import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
 import '../widgets/market_block.dart';
@@ -71,8 +73,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Instalar Euro2 en este dispositivo'),
             subtitle: Text(Install.canPromptNatively
                 ? 'Se instala desde el navegador, sin tienda, y se abre a pantalla completa.'
-                : 'iPhone/iPad: Safari → Compartir → "Añadir a pantalla de inicio". '
-                    'Android: menú del navegador → "Instalar aplicación".'),
+                : switch (Device.kind) {
+                    DeviceKind.ios => 'En Safari: botón Compartir → "Añadir a pantalla de inicio".',
+                    DeviceKind.android => 'Menú del navegador (⋮) → "Instalar aplicación" o '
+                        '"Añadir a pantalla de inicio".',
+                    DeviceKind.desktop => 'Pulsa el icono de instalación en la barra de direcciones '
+                        '(Chrome/Edge) o usa el menú → "Instalar Euro2".',
+                  }),
             trailing: Install.canPromptNatively
                 ? FilledButton(
                     onPressed: () async {
@@ -197,7 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Panel del servidor'),
             subtitle: const Text('Claves de API, fuentes y sincronización, usuarios, registros, copias, actualizaciones'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminScreen())),
+            onTap: () => Navigator.of(context).push(SwipeBackRoute(builder: (_) => const AdminScreen())),
           ),
         ] else if (!state.loggedIn)
           const Padding(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'coin_detail.dart';
@@ -192,7 +193,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       itemBuilder: (_, i) => TypeTile(
                         api: api,
                         type: _items[i],
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        onTap: () => Navigator.of(context).push(SwipeBackRoute(
                             builder: (_) => CoinDetailScreen(typeId: _items[i]['id']))),
                       ),
                     ),

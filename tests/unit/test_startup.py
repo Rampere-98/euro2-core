@@ -38,3 +38,31 @@ def _always(value):
 
 def _boom():
     raise AssertionError("must not start the stack when the database answers")
+
+
+def test_already_running_detects_a_server_on_the_port():
+    # Windows lets two processes bind the same port (SO_REUSEADDR); a second `serve` must
+    # notice the first one instead of silently sharing connections with it
+    import socket
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Health(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'{"status":"ok"}')
+
+        def log_message(self, *a):
+            pass
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        free_port = probe.getsockname()[1]
+    assert startup.already_running("127.0.0.1", free_port) is False
+    server = HTTPServer(("127.0.0.1", 0), Health)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        assert startup.already_running("127.0.0.1", server.server_address[1]) is True
+    finally:
+        server.shutdown()

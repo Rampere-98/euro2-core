@@ -117,3 +117,21 @@ async def test_registration_can_be_closed_from_the_panel(client, catalog):
         json={"email": "late@example.org", "password": "secret-pass-1", "display_name": "L"},
     )
     assert r.status_code == 403
+
+
+async def test_stats_break_identifications_down_by_device(client, catalog, session):
+    from euro2core.domain.models import Identification
+
+    admin = await _signup(client, "owner@example.org")
+    session.add_all(
+        [
+            Identification(found_circle=True, candidates=[], device="ios", pwa=True),
+            Identification(found_circle=True, candidates=[], device="ios", pwa=False),
+            Identification(found_circle=False, candidates=[], device="android", pwa=False),
+            Identification(found_circle=False, candidates=[]),
+        ]
+    )
+    await session.commit()
+    stats = (await client.get("/admin/stats", headers=admin)).json()
+    assert stats["identifications_30d_by_device"] == {"ios": 2, "android": 1, "unknown": 1}
+    assert stats["identifications_30d_pwa"] == 1

@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     token_hours: int = 24 * 30
     # Comma-separated browser origins allowed to call the API (empty = any, for development)
     public_origins: str = ""
+    # Behind Cloudflare Tunnel / a reverse proxy: take the visitor's IP from the proxy headers
+    trust_proxy: bool = False
 
     @property
     def images_dir(self) -> Path:

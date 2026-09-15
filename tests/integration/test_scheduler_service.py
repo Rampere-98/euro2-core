@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from euro2core.config import Settings
 from euro2core.domain.enums import SyncStatus
 from euro2core.domain.models import SyncRun
-from euro2core.scheduler.service import STARTUP_DELAY, build_scheduler
+from euro2core.scheduler.service import STAGGER, STARTUP_DELAY, build_scheduler
 
 pytestmark = pytest.mark.integration
 
@@ -39,7 +39,8 @@ async def test_scheduler_registers_jobs_and_resumes_from_last_success(engine):
 
     # a failed last run does not count as success: retry soon after boot
     numista_next = jobs["numista_catalog"].next_run_time
-    assert numista_next <= datetime.now(UTC) + STARTUP_DELAY + timedelta(seconds=5)
+    # due at boot: shortly after start, in its stagger slot (second job in JOB_SPECS)
+    assert numista_next <= datetime.now(UTC) + STARTUP_DELAY + STAGGER + timedelta(seconds=5)
 
 
 async def test_job_config_switches_jobs_off_and_changes_cadence(engine):

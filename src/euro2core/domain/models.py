@@ -342,6 +342,8 @@ class Identification(Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     image_path: Mapped[str | None] = mapped_column(Text)
     found_circle: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    device: Mapped[str | None] = mapped_column(String(16))  # ios | android | desktop
+    pwa: Mapped[bool | None] = mapped_column(Boolean)  # installed to the home screen
     top_type_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("coin_type.id", ondelete="SET NULL")
     )

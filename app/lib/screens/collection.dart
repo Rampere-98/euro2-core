@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'coin_detail.dart';
@@ -175,7 +176,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
                     final item = _items[i];
                     return _ItemCard(
                       item: item,
-                      onOpen: () => Navigator.of(context).push(MaterialPageRoute(
+                      onOpen: () => Navigator.of(context).push(SwipeBackRoute(
                           builder: (_) => CoinDetailScreen(typeId: item['type']['id']))),
                       onVerify: () => _verify(item),
                       onHistory: () => _showHistory(item),

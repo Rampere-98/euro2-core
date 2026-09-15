@@ -169,3 +169,32 @@ async def test_identify_endpoint_serves_the_crop_it_used(indexed, embedder, tmp_
         assert Image.open(io.BytesIO(crop.content)).size == (224, 224)
         missing = await client.get(f"/identify/{uuid.uuid4()}/crop")
         assert missing.status_code == 404
+
+
+async def test_identify_records_the_device_kind_from_the_app_headers(
+    indexed, embedder, tmp_path, monkeypatch
+):
+    from httpx import ASGITransport, AsyncClient
+
+    from euro2core.api.app import create_app
+
+    monkeypatch.setattr("euro2core.api.routers.identify.get_embedder", lambda: embedder)
+    app = create_app(engine=indexed.bind)
+    data = (FIX / "va_2004_founding.jpg").read_bytes()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.post(
+            "/identify",
+            files={"file": ("coin.jpg", data, "image/jpeg")},
+            headers={"X-Euro2-Device": "ios", "X-Euro2-Pwa": "1"},
+        )
+        assert r.status_code == 200, r.text
+        record = await indexed.get(Identification, uuid.UUID(r.json()["identification_id"]))
+        assert (record.device, record.pwa) == ("ios", True)
+        # unknown values are dropped rather than stored (the header is client-controlled)
+        r = await client.post(
+            "/identify",
+            files={"file": ("coin.jpg", data, "image/jpeg")},
+            headers={"X-Euro2-Device": "toaster"},
+        )
+        record = await indexed.get(Identification, uuid.UUID(r.json()["identification_id"]))
+        assert (record.device, record.pwa) == (None, None)

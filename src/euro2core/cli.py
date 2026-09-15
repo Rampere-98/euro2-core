@@ -195,8 +195,11 @@ def serve(
     import uvicorn
 
     from euro2core.api.app import create_app
-    from euro2core.startup import wait_for_database
+    from euro2core.startup import already_running, wait_for_database
 
+    if already_running(host, port):
+        typer.echo(f"Euro2 is already running on http://{host}:{port} (nothing to do)")
+        return
     # After a reboot the database may still be starting (Docker Desktop on a PC): wait for
     # it instead of dying, so the autostart task does not need to retry.
     if not wait_for_database(str(get_settings().database_url)):

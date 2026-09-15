@@ -627,6 +627,9 @@ class _MaintenanceTabState extends State<_MaintenanceTab> with AutomaticKeepAliv
           _Stat('Fotos', '${s['images_local']}'),
           _Stat('Usuarios', '${s['users']}'),
           _Stat('Piezas en colecciones', '${s['collection_items']}'),
+          for (final e in Map<String, dynamic>.from(s['identifications_30d_by_device'] ?? {}).entries)
+            _Stat('Escaneos 30 d · ${kDeviceLabel[e.key] ?? e.key}', '${e.value}'),
+          _Stat('Escaneos 30 d desde la app instalada', '${s['identifications_30d_pwa'] ?? 0}'),
           for (final e in (s['observations_by_source'] as Map).entries)
             _Stat('Observaciones ${e.key}', '${e.value}'),
         ]),
@@ -687,3 +690,10 @@ class _Stat extends StatelessWidget {
         ]),
       );
 }
+
+const kDeviceLabel = {
+  'ios': 'iPhone/iPad',
+  'android': 'Android',
+  'desktop': 'ordenador',
+  'unknown': 'sin dato',
+};

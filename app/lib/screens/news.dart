@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'coin_detail.dart';
@@ -97,7 +98,7 @@ class _NewsScreenState extends State<NewsScreen> {
                                       onPressed: () => _vote(r, false)),
                                 ])
                               : null,
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          onTap: () => Navigator.of(context).push(SwipeBackRoute(
                               builder: (_) =>
                                   CoinDetailScreen(typeId: r['created_type_id'] ?? r['base_type_id']))),
                         ),
@@ -117,7 +118,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       subtitle: Text('${n['body'] ?? ''}\n${'${n['published_at']}'.substring(0, 10)}'),
                       isThreeLine: n['body'] != null,
                       onTap: n['kind'] == 'new_type' || n['kind'] == 'error_validated'
-                          ? () => Navigator.of(context).push(MaterialPageRoute(
+                          ? () => Navigator.of(context).push(SwipeBackRoute(
                               builder: (_) => CoinDetailScreen(typeId: n['entity_id'])))
                           : null,
                     );

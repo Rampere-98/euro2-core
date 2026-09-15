@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 
 STARTUP_DELAY = timedelta(seconds=30)
 RETRY_DELAY = timedelta(hours=1)  # quota errors (429) usually clear within the hour
+STAGGER = timedelta(seconds=45)  # gap between jobs that are all due at boot
 
 JobFactory = Callable[[AsyncEngine, Settings], Awaitable[SyncRun]]
 
@@ -172,12 +173,24 @@ async def enabled_job_specs(
     return out
 
 
-def plan_next_run(last_success: datetime | None, interval: timedelta, now: datetime) -> datetime:
-    """Keep the cadence across restarts; anything due or never run starts shortly after boot."""
+def plan_next_run(
+    last_success: datetime | None,
+    interval: timedelta,
+    now: datetime,
+    *,
+    last_failure: datetime | None = None,
+    slot: int = 0,
+) -> datetime:
+    """Keep the cadence across restarts. Anything due or never run starts shortly after boot,
+    one job per `STAGGER` so the sources are not all hit at once; a failure more recent than
+    the last success (a paused source, a quota) keeps its retry delay through the restart."""
+    boot = now + STARTUP_DELAY + STAGGER * slot
+    if last_failure is not None and (last_success is None or last_failure > last_success):
+        return max(boot, last_failure + RETRY_DELAY)
     if last_success is None:
-        return now + STARTUP_DELAY
+        return boot
     due = last_success + interval
-    return due if due > now + STARTUP_DELAY else now + STARTUP_DELAY
+    return due if due > boot else boot
 
 
 def plan_after_result(status: SyncStatus, interval: timedelta, now: datetime) -> datetime:
@@ -186,10 +199,18 @@ def plan_after_result(status: SyncStatus, interval: timedelta, now: datetime) ->
 
 
 async def last_success(engine: AsyncEngine, job: str) -> datetime | None:
+    return await _last_finished(engine, job, SyncStatus.SUCCEEDED)
+
+
+async def last_failure(engine: AsyncEngine, job: str) -> datetime | None:
+    return await _last_finished(engine, job, SyncStatus.FAILED)
+
+
+async def _last_finished(engine: AsyncEngine, job: str, status: SyncStatus) -> datetime | None:
     async with async_sessionmaker(engine)() as session:
         return await session.scalar(
             select(SyncRun.finished_at)
-            .where(SyncRun.job == job, SyncRun.status == SyncStatus.SUCCEEDED)
+            .where(SyncRun.job == job, SyncRun.status == status)
             .order_by(SyncRun.finished_at.desc())
             .limit(1)
         )
@@ -198,8 +219,14 @@ async def last_success(engine: AsyncEngine, job: str) -> datetime | None:
 async def build_scheduler(engine: AsyncEngine, settings: Settings) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=UTC)
     now = datetime.now(UTC)
-    for job_id, interval, runner in await enabled_job_specs(engine, settings):
-        next_run = plan_next_run(await last_success(engine, job_id), interval, now)
+    for slot, (job_id, interval, runner) in enumerate(await enabled_job_specs(engine, settings)):
+        next_run = plan_next_run(
+            await last_success(engine, job_id),
+            interval,
+            now,
+            last_failure=await last_failure(engine, job_id),
+            slot=slot,
+        )
 
         async def run(runner=runner, job_id=job_id, interval=interval) -> None:
             log.info("scheduled job %s starting", job_id)

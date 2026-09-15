@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import 'device.dart';
+
 /// Thin client over the euro2-core REST API.
 class Euro2Api {
   Euro2Api({required this.baseUrl, this.token, this.lang = 'es'});
@@ -13,6 +15,9 @@ class Euro2Api {
 
   Map<String, String> get _headers => {
         'Accept-Language': lang,
+        // anonymous device kind, so the server can adapt and count usage per platform
+        'X-Euro2-Device': Device.kind.name,
+        'X-Euro2-Pwa': Device.isPwa ? '1' : '0',
         if (token != null) 'Authorization': 'Bearer $token',
       };
 

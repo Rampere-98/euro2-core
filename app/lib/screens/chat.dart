@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
 import '../widgets/market_block.dart';
@@ -106,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           avatar: const Icon(Icons.euro, size: 16),
                           label: const Text('Ver moneda'),
                           onPressed: () => Navigator.of(context)
-                              .push(MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: id))),
+                              .push(SwipeBackRoute(builder: (_) => CoinDetailScreen(typeId: id))),
                         ),
                       for (final l in m.links.take(3))
                         ActionChip(
@@ -158,7 +159,7 @@ class AskButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => FloatingActionButton.extended(
         heroTag: 'ask-$typeId',
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatScreen(typeId: typeId))),
+        onPressed: () => Navigator.of(context).push(SwipeBackRoute(builder: (_) => ChatScreen(typeId: typeId))),
         icon: const Icon(Icons.chat_bubble_outline),
         label: const Text('Pregunta'),
       );

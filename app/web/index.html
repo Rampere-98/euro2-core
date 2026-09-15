@@ -62,6 +62,14 @@
     window.euro2IsStandalone = function () {
       return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     };
+    // Device kind for UI adaptation and anonymous usage stats: 'ios' | 'android' | 'desktop'.
+    window.euro2Device = function () {
+      var ua = navigator.userAgent || '';
+      if (/iPhone|iPad|iPod/.test(ua)) return 'ios';
+      if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return 'ios';  // iPadOS
+      if (/Android/.test(ua)) return 'android';
+      return 'desktop';
+    };
   </script>
 </head>
 <body>

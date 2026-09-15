@@ -7,7 +7,24 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-limiter = Limiter(key_func=get_remote_address)
+from euro2core.config import get_settings
+
+
+def client_ip(request: Request) -> str:
+    """The visitor's address. Behind Cloudflare Tunnel (or any reverse proxy) every request
+    arrives from the proxy, so with TRUST_PROXY=1 the address comes from the proxy's headers;
+    without it those headers are ignored, since a direct client could forge them."""
+    if get_settings().trust_proxy:
+        cf = request.headers.get("cf-connecting-ip")
+        if cf:
+            return cf.strip()
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=client_ip)
 
 IDENTIFY = "30/minute"
 CHAT = "60/minute"

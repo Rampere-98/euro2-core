@@ -2,7 +2,7 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ from euro2core.vision.identify import confirm, identify
 router = APIRouter(prefix="/identify", tags=["vision"])
 
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+DEVICE_KINDS = {"ios", "android", "desktop"}  # anything else is ignored, not stored
 
 
 class CandidateOut(BaseModel):
@@ -46,6 +47,8 @@ async def identify_photo(
     file: Annotated[UploadFile, File()],
     top_k: int = Query(default=5, ge=1, le=10),
     guided: bool = Query(default=False, description="the photo is already cropped to the coin"),
+    device: Annotated[str | None, Header(alias="X-Euro2-Device")] = None,
+    pwa: Annotated[str | None, Header(alias="X-Euro2-Pwa")] = None,
     session: AsyncSession = SessionDep,
     lang: str = LangDep,
 ) -> IdentifyOut:
@@ -61,6 +64,8 @@ async def identify_photo(
             get_embedder(),
             top_k=top_k,
             guided=guided,
+            device=device if device in DEVICE_KINDS else None,
+            pwa=(pwa == "1") if device in DEVICE_KINDS and pwa in ("0", "1") else None,
             uploads_dir=get_settings().data_dir / "uploads",
         )
     except ValueError as exc:

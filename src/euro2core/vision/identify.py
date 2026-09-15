@@ -55,6 +55,8 @@ async def identify(
     user_id: uuid.UUID | None = None,
     uploads_dir: Path | None = None,
     guided: bool = False,
+    device: str | None = None,
+    pwa: bool | None = None,
 ) -> IdentifyResult:
     """Locate the coin, then match it. The detected rim is only a hint: the photo is also
     tried at several centred crops and the crop whose best candidate verifies best is kept."""
@@ -79,6 +81,8 @@ async def identify(
     record = Identification(
         user_id=user_id,
         found_circle=crop.found_circle,
+        device=device,
+        pwa=pwa,
         top_type_id=candidates[0].type_id if candidates else None,
         top_score=candidates[0].score if candidates else None,
         candidates=[

@@ -6,7 +6,7 @@ import logging
 import os
 import shutil
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 import httpx
@@ -25,6 +25,7 @@ from euro2core.domain.models import (
     CoinIssue,
     CoinType,
     CollectionItem,
+    Identification,
     JobConfig,
     MarketObservation,
     Source,
@@ -303,7 +304,25 @@ async def get_stats(_: AdminUser, session: AsyncSession = SessionDep) -> dict[st
             )
         ).all()
     )
+    since = datetime.now(UTC) - timedelta(days=30)
+    by_device = {
+        (device or "unknown"): n
+        for device, n in (
+            await session.execute(
+                select(Identification.device, func.count())
+                .where(Identification.created_at >= since)
+                .group_by(Identification.device)
+            )
+        ).all()
+    }
+    pwa = await count(
+        select(Identification).where(
+            Identification.created_at >= since, Identification.pwa.is_(True)
+        )
+    )
     return {
+        "identifications_30d_by_device": by_device,
+        "identifications_30d_pwa": pwa,
         "types": await count(select(CoinType)),
         "issues": await count(select(CoinIssue)),
         "images_local": await count(select(CoinImage).where(CoinImage.local_path.is_not(None))),

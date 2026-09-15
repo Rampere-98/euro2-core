@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
 import '../widgets/market_block.dart';
@@ -111,7 +112,7 @@ class _DealsTabState extends State<_DealsTab> with AutomaticKeepAliveClientMixin
                       style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                 ]),
                 onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: d['type']['id']))),
+                    SwipeBackRoute(builder: (_) => CoinDetailScreen(typeId: d['type']['id']))),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 8, 6),
@@ -143,7 +144,7 @@ class _DealsTabState extends State<_DealsTab> with AutomaticKeepAliveClientMixin
                     color: (m['trend_pct'] as num) >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
               ),
               onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: m['type']['id']))),
+                  SwipeBackRoute(builder: (_) => CoinDetailScreen(typeId: m['type']['id']))),
             ),
           ],
         ],
@@ -350,7 +351,7 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
                   type: Map<String, dynamic>.from(it['type']),
                   trailing: Text(euro(a['start']), style: Theme.of(context).textTheme.titleMedium),
                   onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: it['type']['id']))),
+                      SwipeBackRoute(builder: (_) => CoinDetailScreen(typeId: it['type']['id']))),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -458,7 +459,7 @@ class _WatchTabState extends State<_WatchTab> with AutomaticKeepAliveClientMixin
               type: Map<String, dynamic>.from(w['type']),
               trailing: _verdictChip(w['buy']['verdict']),
               onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: w['type']['id']))),
+                  SwipeBackRoute(builder: (_) => CoinDetailScreen(typeId: w['type']['id']))),
             ),
           );
         },

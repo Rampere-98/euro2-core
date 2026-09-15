@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 from sqlalchemy import text
@@ -80,3 +81,12 @@ def wait_for_database(url: str, *, timeout: float = WAIT_SECONDS) -> bool:
             return True
         time.sleep(5)
     return False
+
+
+def already_running(host: str, port: int) -> bool:
+    """True when something already answers /health on this address (a second `serve`)."""
+    try:
+        with urllib.request.urlopen(f"http://{host}:{port}/health", timeout=2) as r:
+            return r.status == 200
+    except Exception:
+        return False
