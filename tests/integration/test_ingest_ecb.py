@@ -19,7 +19,7 @@ from euro2core.domain.models import (
     TextTranslation,
 )
 from euro2core.images.fetcher import ImageFetcher
-from euro2core.sources.ecb.parser import parse_commemorative_page
+from euro2core.sources.ecb.parser import EcbEntry, parse_commemorative_page
 
 pytestmark = pytest.mark.integration
 
@@ -245,3 +245,28 @@ async def test_ecb_only_types_get_a_placeholder_issue_that_numista_replaces(sess
     assert [(i.mint_mark, i.numista_issue_id, i.mintage) for i in vatican_issues] == [
         ("R", 26000, 85_000)
     ]
+
+
+async def test_german_emissions_get_their_five_mints_from_the_ecb_total_alone(session):
+    from euro2core.catalog.issues import GERMAN_MINTS
+    from euro2core.domain.models import CoinIssue
+
+    await ensure_reference_data(session)
+    entry = EcbEntry(
+        year=2026,
+        country_code="DE",
+        country_name="Germany",
+        feature="Thuringia",
+        description="Wartburg castle.",
+        mintage=30_000_000,
+        mintage_raw="30 million coins",
+        issue_date_raw="January 2026",
+    )
+    await ingest_ecb_entries(session, [entry], fetcher=None)
+    await session.commit()
+    coin_type = (await session.scalars(select(CoinType).where(CoinType.country_code == "DE"))).one()
+    issues = (
+        await session.scalars(select(CoinIssue).where(CoinIssue.type_id == coin_type.id))
+    ).all()
+    assert sorted(i.mint_mark for i in issues) == list(GERMAN_MINTS)
+    assert {i.mintage for i in issues} == {6_000_000}

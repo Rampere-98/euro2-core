@@ -3,17 +3,36 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from euro2core.domain.enums import Finish, Packaging
+from euro2core.domain.enums import CoinKind, Finish, Packaging
 from euro2core.domain.models import CoinIssue, CoinType, MarketObservation
+
+GERMAN_MINTS = ("A", "D", "F", "G", "J")  # Berlin, Munich, Stuttgart, Karlsruhe, Hamburg
 
 
 async def ensure_placeholder_issue(session: AsyncSession, coin_type: CoinType) -> None:
-    """The ECB describes emissions, not mint variants. Until Numista supplies them, a single
-    loose circulation issue lets listings and prices attach to the coin."""
+    """The ECB describes emissions, not mint variants. Until Numista supplies them, a loose
+    circulation issue lets listings and prices attach to the coin. German commemoratives are
+    always struck by the five federal mints in equal shares, so those five variants are
+    created from the ECB total alone — no third party needed."""
     has_issue = (
         await session.scalars(select(CoinIssue.id).where(CoinIssue.type_id == coin_type.id))
     ).first()
-    if has_issue is None:
+    if has_issue is not None:
+        return
+    if coin_type.country_code == "DE" and coin_type.kind == CoinKind.COMMEMORATIVE:
+        share = coin_type.mintage_total // len(GERMAN_MINTS) if coin_type.mintage_total else None
+        for mark in GERMAN_MINTS:
+            session.add(
+                CoinIssue(
+                    type_id=coin_type.id,
+                    year=coin_type.year,
+                    mint_mark=mark,
+                    finish=Finish.CIRCULATION,
+                    packaging=Packaging.LOOSE,
+                    mintage=share,
+                )
+            )
+    else:
         session.add(
             CoinIssue(
                 type_id=coin_type.id,
@@ -23,7 +42,7 @@ async def ensure_placeholder_issue(session: AsyncSession, coin_type: CoinType) -
                 packaging=Packaging.LOOSE,
             )
         )
-        await session.flush()
+    await session.flush()
 
 
 async def drop_unreferenced_placeholders(session: AsyncSession, coin_type: CoinType) -> None:

@@ -30,6 +30,8 @@ dependencies = [
     "typer>=0.27.2",
     "uvicorn[standard]>=0.53.0",
     "transformers>=5.17.0",
+    "cryptography>=50.0.1",
+    "slowapi>=0.1.10",
 ]
 
 [project.scripts]

@@ -35,6 +35,7 @@ async def add_item(
     acquired_price: Decimal | None = None,
     acquired_at: datetime | None = None,
     notes: str | None = None,
+    share_price: bool = True,
 ) -> CollectionItem:
     if await session.get(CoinIssue, issue_id) is None:
         raise PortfolioError("issue not found")
@@ -53,7 +54,8 @@ async def add_item(
         PieceEvent(item_id=item.id, kind="registered", to_user_id=user.id, price=acquired_price)
     )
     await session.flush()
-    await record_purchase(session, item)  # what you paid is market data nobody else has
+    if share_price:
+        await record_purchase(session, item)  # what you paid is market data nobody else has
     return item
 
 

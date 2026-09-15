@@ -198,7 +198,18 @@ async def test_events_sources_and_sync_runs(client, catalog):
     assert runs["items"][0]["job"] == "ecb_discover"
 
 
-async def test_trigger_sync_job_is_recorded(client, catalog, monkeypatch):
+async def _admin(client) -> dict:
+    """The first account registered on a server is its administrator."""
+    r = await client.post(
+        "/auth/register",
+        json={"email": "owner@example.org", "password": "secret-pass-1", "display_name": "Owner"},
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["user"]["role"] == "admin"
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+async def test_trigger_sync_job_is_admin_only(client, catalog, monkeypatch):
     calls = []
 
     async def fake_job(engine, **kwargs):
@@ -206,15 +217,25 @@ async def test_trigger_sync_job_is_recorded(client, catalog, monkeypatch):
         return SyncRun(job="ecb_discover", status="succeeded", stats={})
 
     monkeypatch.setattr("euro2core.api.routers.sync.JOBS", {"ecb_discover": fake_job})
-    r = await client.post("/sync/ecb_discover")
+    assert (await client.post("/sync/ecb_discover")).status_code == 401
+    admin = await _admin(client)
+    second = await client.post(
+        "/auth/register",
+        json={"email": "u2@example.org", "password": "secret-pass-1", "display_name": "U"},
+    )
+    user = {"Authorization": f"Bearer {second.json()['access_token']}"}
+    assert second.json()["user"]["role"] == "user"
+    assert (await client.post("/sync/ecb_discover", headers=user)).status_code == 403
+    r = await client.post("/sync/ecb_discover", headers=admin)
     assert r.status_code == 202
     assert r.json()["job"] == "ecb_discover"
-    assert (await client.post("/sync/nope")).status_code == 404
+    assert (await client.post("/sync/nope", headers=admin)).status_code == 404
 
 
 async def test_trigger_sync_is_refused_while_the_job_runs(client, catalog, monkeypatch):
     monkeypatch.setattr("euro2core.api.routers.sync.is_running", lambda job: True)
-    assert (await client.post("/sync/ecb_discover")).status_code == 409
+    admin = await _admin(client)
+    assert (await client.post("/sync/ecb_discover", headers=admin)).status_code == 409
 
 
 async def test_image_endpoint_handles_reference_only_and_escaped_paths(client, catalog, session):

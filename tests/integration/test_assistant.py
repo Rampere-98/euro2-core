@@ -216,3 +216,23 @@ async def test_collectors_own_purchases_and_sales_feed_the_market(client, catalo
         )
     ).all()
     assert len(sold_urls) == 7  # 6 purchases + the piece bought from the peer
+
+
+async def test_a_collector_can_keep_a_purchase_price_private(client, catalog):
+    from datetime import UTC, datetime
+
+    buyer = await _signup(client, "private@example.org")
+    r = await client.post(
+        "/me/collection",
+        json={
+            "issue_id": str(catalog["de_a"]),
+            "grade": "unc",
+            "acquired_price": "50",
+            "acquired_at": datetime.now(UTC).isoformat(),
+            "share_price": False,
+        },
+        headers=buyer,
+    )
+    assert r.status_code == 201
+    m = (await client.get(f"/types/{catalog['de_type']}/market")).json()
+    assert m["realized"] is None  # nothing entered the market data

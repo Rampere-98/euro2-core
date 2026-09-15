@@ -1,14 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
-from euro2core.config import Settings
 from euro2core.domain.enums import SyncStatus
 from euro2core.scheduler.service import (
-    EBAY_JOBS,
     JOB_SPECS,
-    NUMISTA_JOBS,
     RETRY_DELAY,
     STARTUP_DELAY,
-    enabled_job_specs,
     plan_after_result,
     plan_next_run,
 )
@@ -52,16 +48,7 @@ def test_job_specs_cover_the_approved_cadences():
     assert specs["embed_types"] == timedelta(hours=24)
 
 
-def test_jobs_without_credentials_are_not_scheduled():
-    settings = Settings(
-        _env_file=None, numista_api_key="", ebay_client_id="", ebay_client_secret=""
-    )
-    ids = {job_id for job_id, _, _ in enabled_job_specs(settings)}
-    assert "ecb_discover" in ids and "recompute_prices" in ids
-    assert not ids & (NUMISTA_JOBS | EBAY_JOBS)
-    settings = Settings(
-        _env_file=None, numista_api_key="k", ebay_client_id="", ebay_client_secret=""
-    )
-    ids = {job_id for job_id, _, _ in enabled_job_specs(settings)}
-    assert ids >= NUMISTA_JOBS
-    assert "ebay_market" not in ids
+def test_skipped_runs_wait_the_full_cadence_and_failures_retry_soon():
+    interval = timedelta(hours=24)
+    assert plan_after_result(SyncStatus.SKIPPED, interval, NOW) == NOW + interval
+    assert plan_after_result(SyncStatus.FAILED, interval, NOW) == NOW + RETRY_DELAY

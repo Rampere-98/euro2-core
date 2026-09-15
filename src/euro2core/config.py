@@ -1,3 +1,4 @@
+import secrets
 from functools import lru_cache
 from pathlib import Path
 
@@ -16,15 +17,34 @@ class Settings(BaseSettings):
     ebay_client_secret: str = ""
     data_dir: Path = Path("./data")
     user_agent: str = "euro2-core/0.1"
-    # Signs login tokens and digital certificates; set a long random value in .env
-    secret_key: str = "change-me-in-.env"
+    # Signs login tokens, certificates and the encrypted settings store. Left empty it is
+    # generated once and kept in data/secret.key, so nothing has to be edited by hand.
+    secret_key: str = ""
     token_hours: int = 24 * 30
+    # Comma-separated browser origins allowed to call the API (empty = any, for development)
+    public_origins: str = ""
 
     @property
     def images_dir(self) -> Path:
         return self.data_dir / "images"
 
+    def origins(self) -> list[str]:
+        return [o.strip() for o in self.public_origins.split(",") if o.strip()]
+
+
+def _ensure_secret(settings: Settings) -> Settings:
+    if settings.secret_key and settings.secret_key != "change-me-in-.env":
+        return settings
+    path = settings.data_dir / "secret.key"
+    if path.exists():
+        settings.secret_key = path.read_text(encoding="utf-8").strip()
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        settings.secret_key = secrets.token_urlsafe(48)
+        path.write_text(settings.secret_key, encoding="utf-8")
+    return settings
+
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return _ensure_secret(Settings())

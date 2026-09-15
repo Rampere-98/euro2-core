@@ -10,6 +10,7 @@ from argon2.exceptions import VerifyMismatchError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from euro2core.domain.enums import Role
 from euro2core.domain.models import User
 
 _hasher = PasswordHasher()
@@ -40,11 +41,14 @@ async def register(
     exists = await session.scalar(select(User.id).where(func.lower(User.email) == email))
     if exists is not None:
         raise AuthError("email already registered")
+    # The very first account owns the server: it becomes admin without any CLI step.
+    first = await session.scalar(select(func.count()).select_from(User)) == 0
     user = User(
         email=email,
         password_hash=hash_password(password),
         display_name=display_name.strip()[:60] or email.split("@")[0],
         country_code=country_code,
+        role=Role.ADMIN if first else Role.USER,
     )
     session.add(user)
     await session.flush()

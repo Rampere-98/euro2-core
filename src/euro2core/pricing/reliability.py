@@ -83,6 +83,8 @@ def assess(
     type_is_coloured: bool = False,
     realized: bool = False,
     fair_p75: Decimal | None = None,
+    extra_replica: tuple[str, ...] = (),
+    extra_altered: tuple[str, ...] = (),
 ) -> Reliability:
     parsed = parse_title(title)
     text = parsed.normalized
@@ -90,9 +92,10 @@ def assess(
 
     if parsed.is_lot:
         return Reliability(0.0, ["lot"])
-    if any(f" {w} " in text for w in REPLICA_WORDS):
+    if any(f" {w} " in text for w in (*REPLICA_WORDS, *extra_replica)):
         return Reliability(0.0, ["replica"])
-    if not type_is_coloured and any(f" {w} " in text for w in ALTERED_WORDS):
+    altered = (*ALTERED_WORDS, *extra_altered)
+    if not type_is_coloured and any(f" {w} " in text for w in altered):
         return Reliability(0.0, ["altered"])
     if match_confidence < MATCH_MIN:
         return Reliability(0.0, ["match_weak"])

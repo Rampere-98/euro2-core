@@ -39,7 +39,6 @@ async def ingest_ecb_entries(
         coin_type, created = await _get_or_create_type(session, entry)
         if created:
             stats.types_created += 1
-        await ensure_placeholder_issue(session, coin_type)
         claims = {
             "kind": CoinKind.COMMEMORATIVE.value,
             "title": entry.feature,
@@ -64,6 +63,7 @@ async def ingest_ecb_entries(
             ):
                 stats.claims_added += 1
             await resolve_field(session, "coin_type", coin_type.id, name, coin_type)
+        await ensure_placeholder_issue(session, coin_type)  # after the mintage is known
         await _upsert_translation(session, coin_type, "title", entry.feature, source.id)
         await _upsert_translation(session, coin_type, "description", entry.description, source.id)
         if fetcher is not None:

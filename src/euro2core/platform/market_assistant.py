@@ -25,9 +25,9 @@ from euro2core.domain.models import (
 from euro2core.domain.models import (
     Listing as PeerListing,
 )
+from euro2core.platform.credentials import credentials
 from euro2core.pricing.market_intel import (
     ASKING_KINDS,
-    DEAL_THRESHOLD_PCT,
     BuyAdvice,
     Listing,
     MonthPoint,
@@ -130,6 +130,7 @@ async def market_for_type(
     catalog = await catalog_value(session, coin_type.id)
     model = await model_band_for(session, coin_type.id)
     coloured = coin_type.base_type_id is not None
+    creds = await credentials(session)
     snap = snapshot(
         listings,
         issue_year=coin_type.year,
@@ -137,6 +138,8 @@ async def market_for_type(
         catalog=catalog,
         model=model,
         type_is_coloured=coloured,
+        extra_replica=tuple(creds.replica_words),
+        extra_altered=tuple(creds.altered_words),
     )
     history = monthly_history(listings, now=now)
     est_rows = (
@@ -211,6 +214,7 @@ async def deals(
 ) -> list[Deal]:
     """Reliable active listings priced well below the fair band, best first."""
     now = now or datetime.now(UTC)
+    threshold = (await credentials(session)).deal_threshold_pct
     found: list[Deal] = []
     for coin_type in await _types_with_active_asks(session, now=now):
         market = await market_for_type(session, coin_type, now=now)
@@ -220,7 +224,7 @@ async def deals(
         weight = await _rarity_weight(session, coin_type.id)
         for offer in snap.offers:
             discount = deal_discount(offer.listing.price, snap.band)
-            if discount < DEAL_THRESHOLD_PCT:
+            if discount < threshold:
                 continue
             found.append(
                 Deal(

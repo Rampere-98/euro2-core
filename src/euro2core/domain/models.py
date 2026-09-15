@@ -376,6 +376,33 @@ class ImageEmbedding(Base):
 # --------------------------------------------------------------------------------------
 
 
+class AppSetting(Base):
+    """Server configuration editable from the app's admin panel. Secrets are stored encrypted
+    (Fernet, key derived from SECRET_KEY); plain values as text."""
+
+    __tablename__ = "app_setting"
+
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    is_secret: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class JobConfig(Base):
+    """Per-job switches the admin panel controls: on/off and cadence in hours."""
+
+    __tablename__ = "job_config"
+
+    job: Mapped[str] = mapped_column(String(40), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    interval_hours: Mapped[float] = mapped_column(Float, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class User(Base):
     __tablename__ = "app_user"
 

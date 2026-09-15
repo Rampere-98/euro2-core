@@ -3,11 +3,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
+from euro2core.api.cors import DynamicCORSMiddleware
+from euro2core.api.ratelimit import _rate_limit_handler, limiter
 from euro2core.api.routers import (
+    admin,
     assistant,
     auth,
     chat,
@@ -26,6 +29,7 @@ from euro2core.api.routers import (
 )
 from euro2core.config import get_settings
 from euro2core.db import get_engine
+from euro2core.platform import logbuffer
 from euro2core.scheduler.service import build_scheduler
 
 log = logging.getLogger(__name__)
@@ -42,6 +46,7 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        logbuffer.install()  # last log lines readable from the admin panel
         if not hasattr(app.state, "engine"):
             bind(app, get_engine())
         app.state.scheduler = None
@@ -63,13 +68,11 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
     )
     if engine is not None:
         bind(app, engine)
-    # Native builds (Android/iOS) and `flutter run -d chrome` call the API cross-origin.
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # Allowed origins are edited in the app (Ajustes → Administración); empty = any.
+    app.add_middleware(DynamicCORSMiddleware, sessions_getter=lambda: app.state.sessions)
+    # Public server: keep abusive clients from exhausting the CPU-bound endpoints.
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
     for router in (
         health.router,
         types.router,
@@ -86,6 +89,7 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
         community.router,
         assistant.router,
         chat.router,
+        admin.router,
     ):
         app.include_router(router)
     if WEB_BUILD_DIR.is_dir():

@@ -135,6 +135,8 @@ def snapshot(
     catalog: Decimal | None = None,
     model: tuple[Decimal, Decimal] | None = None,
     type_is_coloured: bool = False,
+    extra_replica: tuple[str, ...] = (),
+    extra_altered: tuple[str, ...] = (),
 ) -> Snapshot:
     scored: list[ScoredListing] = []
     ignored: list[Listing] = []
@@ -147,6 +149,8 @@ def snapshot(
             issue_year=issue_year,
             type_is_coloured=type_is_coloured,
             realized=x.kind in REALIZED_KINDS,
+            extra_replica=extra_replica,
+            extra_altered=extra_altered,
         )
         if r.usable:
             scored.append(ScoredListing(x, r))

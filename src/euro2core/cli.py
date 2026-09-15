@@ -8,6 +8,7 @@ import typer
 
 from euro2core.config import get_settings
 from euro2core.db import get_engine
+from euro2core.platform import logbuffer
 from euro2core.scheduler.jobs import (
     run_auction_close_check,
     run_ebay_market,
@@ -23,6 +24,7 @@ from euro2core.scheduler.jobs import (
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logbuffer.install()  # the admin panel reads the last lines from memory
 for noisy in ("httpx", "apscheduler"):  # one line per request / per job add is noise
     logging.getLogger(noisy).setLevel(logging.WARNING)
 

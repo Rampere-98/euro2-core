@@ -189,7 +189,16 @@ async def recompute_model_estimates(session: AsyncSession) -> dict[str, int]:
     (grade UNC, global), calibrated from the issues that do have real sales. Issues that
     gained a better basis lose their model row."""
     from euro2core.domain.models import CoinIssue, CoinType
-    from euro2core.pricing.mintage_model import BASIS, METHOD_VERSION, calibrate, model_band
+    from euro2core.platform.credentials import credentials
+    from euro2core.pricing.mintage_model import (
+        BASIS,
+        METHOD_VERSION,
+        calibrate,
+        model_band,
+        parse_buckets,
+    )
+
+    buckets = parse_buckets((await credentials(session)).mintage_buckets)
 
     sold = (
         await session.execute(
@@ -202,7 +211,7 @@ async def recompute_model_estimates(session: AsyncSession) -> dict[str, int]:
             )
         )
     ).all()
-    calibration = calibrate([(m, p25, p75) for m, p25, p75 in sold])
+    calibration = calibrate([(m, p25, p75) for m, p25, p75 in sold], buckets)
 
     better = (
         select(PriceEstimate.issue_id)
@@ -282,7 +291,7 @@ async def recompute_model_estimates(session: AsyncSession) -> dict[str, int]:
         else:
             design = totals.get(type_id)
         orphan_edition = base_id is None and is_special_edition(titles.get(type_id, ""))
-        band = None if orphan_edition else model_band(design, finish, calibration)
+        band = None if orphan_edition else model_band(design, finish, calibration, buckets)
         row = existing.pop(issue_id, None)
         if band is None:
             if row is not None:

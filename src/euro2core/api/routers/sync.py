@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.api.deps import SessionDep
+from euro2core.api.routers.admin import AdminUser
 from euro2core.api.schemas import Page, SyncRunOut
 from euro2core.config import get_settings
 from euro2core.domain.models import SyncRun
@@ -37,7 +38,9 @@ async def list_runs(
 
 
 @router.post("/{job}", status_code=202)
-async def trigger_job(job: str, request: Request, background: BackgroundTasks) -> dict[str, str]:
+async def trigger_job(
+    job: str, request: Request, background: BackgroundTasks, _: AdminUser
+) -> dict[str, str]:
     runner = JOBS.get(job)
     if runner is None:
         raise HTTPException(status_code=404, detail=f"unknown job; known: {sorted(JOBS)}")

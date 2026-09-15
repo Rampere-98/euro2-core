@@ -2,12 +2,13 @@
 
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.api.auth_deps import OptionalUser
 from euro2core.api.deps import SessionDep
+from euro2core.api.ratelimit import CHAT, limiter
 from euro2core.platform.chat import answer
 from euro2core.platform.semantic import get_text_embedder
 
@@ -30,7 +31,10 @@ class ChatOut(BaseModel):
 
 
 @router.post("/assistant/chat", response_model=ChatOut)
-async def chat(body: ChatIn, user: OptionalUser, session: AsyncSession = SessionDep) -> ChatOut:
+@limiter.limit(CHAT)
+async def chat(
+    request: Request, body: ChatIn, user: OptionalUser, session: AsyncSession = SessionDep
+) -> ChatOut:
     try:
         embedder = get_text_embedder()
     except Exception:  # model not downloaded yet: rules and title search still work

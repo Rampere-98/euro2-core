@@ -1,15 +1,19 @@
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.api.auth_deps import CurrentUser
 from euro2core.api.deps import SessionDep
+from euro2core.api.ratelimit import LOGIN, REGISTER, limiter
 from euro2core.config import get_settings
 from euro2core.domain.enums import Plan
+from euro2core.domain.models import User
 from euro2core.platform.auth import AuthError, authenticate, issue_token, register
+from euro2core.platform.credentials import credentials
 
 router = APIRouter(tags=["account"])
 
@@ -58,7 +62,13 @@ def _token_for(user) -> TokenOut:
 
 
 @router.post("/auth/register", response_model=TokenOut, status_code=201)
-async def register_account(body: RegisterIn, session: AsyncSession = SessionDep) -> TokenOut:
+@limiter.limit(REGISTER)
+async def register_account(
+    request: Request, body: RegisterIn, session: AsyncSession = SessionDep
+) -> TokenOut:
+    creds = await credentials(session)
+    if not creds.registration_open and await session.scalar(select(func.count()).select_from(User)):
+        raise HTTPException(status_code=403, detail="registration is closed")
     try:
         user = await register(
             session,
@@ -74,7 +84,8 @@ async def register_account(body: RegisterIn, session: AsyncSession = SessionDep)
 
 
 @router.post("/auth/login", response_model=TokenOut)
-async def login(body: LoginIn, session: AsyncSession = SessionDep) -> TokenOut:
+@limiter.limit(LOGIN)
+async def login(request: Request, body: LoginIn, session: AsyncSession = SessionDep) -> TokenOut:
     try:
         user = await authenticate(session, email=body.email, password=body.password)
     except AuthError as exc:

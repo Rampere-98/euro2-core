@@ -44,11 +44,29 @@ class ModelBand:
     bucket: int  # index into the bucket table, for calibration and audit
 
 
-def bucket_index(mintage: int) -> int:
-    for i, (upper, _, _) in enumerate(DEFAULT_BUCKETS):
+Buckets = tuple[tuple[int, Decimal, Decimal], ...]
+
+
+def parse_buckets(raw: list[list[float]] | None) -> Buckets:
+    """Admin-edited buckets ([[upper, low, high], ...]); anything unusable -> defaults."""
+    if not raw:
+        return DEFAULT_BUCKETS
+    try:
+        parsed = tuple(
+            (int(upper), Decimal(str(low)), Decimal(str(high))) for upper, low, high in raw
+        )
+    except (TypeError, ValueError):
+        return DEFAULT_BUCKETS
+    if not parsed or any(low <= 0 or high < low for _, low, high in parsed):
+        return DEFAULT_BUCKETS
+    return tuple(sorted(parsed))
+
+
+def bucket_index(mintage: int, buckets: Buckets = DEFAULT_BUCKETS) -> int:
+    for i, (upper, _, _) in enumerate(buckets):
         if mintage < upper:
             return i
-    return len(DEFAULT_BUCKETS) - 1
+    return len(buckets) - 1
 
 
 def _money(x: Decimal) -> Decimal:
@@ -59,13 +77,14 @@ def model_band(
     mintage: int | None,
     finish: Finish = Finish.CIRCULATION,
     calibration: dict[int, tuple[Decimal, Decimal]] | None = None,
+    buckets: Buckets = DEFAULT_BUCKETS,
 ) -> ModelBand | None:
     """Band for one issue. `calibration` maps bucket index → (p25, p75) observed in real
     sales of coins in that bucket; when present it replaces the default bucket."""
     if mintage is None or mintage <= 0:
         return None
-    i = bucket_index(mintage)
-    low, high = DEFAULT_BUCKETS[i][1], DEFAULT_BUCKETS[i][2]
+    i = bucket_index(mintage, buckets)
+    low, high = buckets[i][1], buckets[i][2]
     if calibration and i in calibration:
         low, high = calibration[i]
     factor = FINISH_FACTOR.get(finish, Decimal("1"))
@@ -75,14 +94,14 @@ def model_band(
 
 
 def calibrate(
-    observed: list[tuple[int, Decimal, Decimal]],
+    observed: list[tuple[int, Decimal, Decimal]], buckets: Buckets = DEFAULT_BUCKETS
 ) -> dict[int, tuple[Decimal, Decimal]]:
     """From (mintage, p25, p75) of issues that do have real sales, derive per-bucket bands:
     the median p25 and median p75 of the bucket, once it holds enough coins."""
     per_bucket: dict[int, list[tuple[Decimal, Decimal]]] = {}
     for mintage, p25, p75 in observed:
         if mintage and p25 is not None and p75 is not None:
-            per_bucket.setdefault(bucket_index(mintage), []).append((p25, p75))
+            per_bucket.setdefault(bucket_index(mintage, buckets), []).append((p25, p75))
     out: dict[int, tuple[Decimal, Decimal]] = {}
     for i, rows in per_bucket.items():
         if len(rows) < MIN_SALES_TO_CALIBRATE:

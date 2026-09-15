@@ -54,6 +54,7 @@ class SyncStatus(StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    SKIPPED = "skipped"  # nothing to do (no credentials); waits its full cadence
 
 
 class Plan(StrEnum):

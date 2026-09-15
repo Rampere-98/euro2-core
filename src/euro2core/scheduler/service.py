@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from euro2core.config import Settings
 from euro2core.domain.enums import SyncStatus
-from euro2core.domain.models import SyncRun
+from euro2core.domain.models import JobConfig, SyncRun
+from euro2core.platform.credentials import Credentials, credentials
 from euro2core.scheduler import jobs
 
 log = logging.getLogger(__name__)
@@ -21,27 +22,44 @@ RETRY_DELAY = timedelta(hours=1)  # quota errors (429) usually clear within the 
 JobFactory = Callable[[AsyncEngine, Settings], Awaitable[SyncRun]]
 
 
+def _skipped(job: str, reason: str) -> SyncRun:
+    log.info("%s skipped: %s", job, reason)
+    return SyncRun(job=job, status=SyncStatus.SKIPPED, error=reason)
+
+
+async def _creds(engine: AsyncEngine, settings: Settings) -> Credentials:
+    async with async_sessionmaker(engine)() as session:
+        return await credentials(session, settings)
+
+
 async def _ecb(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    creds = await _creds(engine, settings)
     return await jobs.run_ecb_discover(
-        engine, data_dir=settings.data_dir, user_agent=settings.user_agent
+        engine, data_dir=settings.data_dir, user_agent=creds.user_agent
     )
 
 
 async def _numista(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    creds = await _creds(engine, settings)
+    if not creds.has_numista:
+        return _skipped("numista_catalog", "no Numista API key (Ajustes → Administración)")
     return await jobs.run_numista_catalog(
         engine,
         data_dir=settings.data_dir,
-        api_key=settings.numista_api_key,
-        user_agent=settings.user_agent,
+        api_key=creds.numista_api_key,
+        user_agent=creds.user_agent,
     )
 
 
 async def _numista_prices(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    creds = await _creds(engine, settings)
+    if not creds.has_numista:
+        return _skipped("numista_prices", "no Numista API key (Ajustes → Administración)")
     return await jobs.run_numista_prices(
         engine,
         data_dir=settings.data_dir,
-        api_key=settings.numista_api_key,
-        user_agent=settings.user_agent,
+        api_key=creds.numista_api_key,
+        user_agent=creds.user_agent,
     )
 
 
@@ -65,24 +83,36 @@ async def _embed_types(engine: AsyncEngine, settings: Settings) -> SyncRun:
     return await jobs.run_embed_types(engine)
 
 
-def _ebay_credentials(settings: Settings) -> dict[str, str]:
+async def _ebay_credentials(engine: AsyncEngine, settings: Settings) -> dict[str, str] | None:
+    creds = await _creds(engine, settings)
+    if not creds.has_ebay:
+        return None
     return {
-        "client_id": settings.ebay_client_id,
-        "client_secret": settings.ebay_client_secret,
-        "user_agent": settings.user_agent,
+        "client_id": creds.ebay_client_id,
+        "client_secret": creds.ebay_client_secret,
+        "user_agent": creds.user_agent,
     }
 
 
 async def _ebay_market(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    return await jobs.run_ebay_market(engine, **_ebay_credentials(settings))
+    creds = await _ebay_credentials(engine, settings)
+    if creds is None:
+        return _skipped("ebay_market", "no eBay keys (Ajustes → Administración)")
+    return await jobs.run_ebay_market(engine, **creds)
 
 
 async def _ebay_hot(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    return await jobs.run_ebay_market(engine, hot_days=30, **_ebay_credentials(settings))
+    creds = await _ebay_credentials(engine, settings)
+    if creds is None:
+        return _skipped("ebay_hot", "no eBay keys (Ajustes → Administración)")
+    return await jobs.run_ebay_market(engine, hot_days=30, **creds)
 
 
 async def _auctions(engine: AsyncEngine, settings: Settings) -> SyncRun:
-    return await jobs.run_auction_close_check(engine, **_ebay_credentials(settings))
+    creds = await _ebay_credentials(engine, settings)
+    if creds is None:
+        return _skipped("auction_close_check", "no eBay keys (Ajustes → Administración)")
+    return await jobs.run_auction_close_check(engine, **creds)
 
 
 # (job id, interval, runner)
@@ -103,21 +133,43 @@ JOB_SPECS: tuple[tuple[str, timedelta, JobFactory], ...] = (
 
 NUMISTA_JOBS = frozenset({"numista_catalog", "numista_prices"})
 EBAY_JOBS = frozenset({"ebay_market", "ebay_hot", "auction_close_check"})
+JOB_LABELS_ES = {
+    "ecb_discover": "BCE: conmemorativas y caras nacionales",
+    "numista_catalog": "Numista: variantes, tiradas, traducciones",
+    "numista_prices": "Numista: valores de catálogo",
+    "ebay_market": "eBay: anuncios y subastas (todo el catálogo)",
+    "ebay_hot": "eBay: monedas con actividad reciente",
+    "auction_close_check": "eBay: subastas cerradas → ventas reales",
+    "recompute_prices": "Precios: estimaciones, modelo por tirada, alertas",
+    "recompute_rarity": "Índice de rareza",
+    "embed_images": "Índice de visión (fotos)",
+    "publish_news": "Noticias",
+    "embed_types": "Índice semántico (búsqueda por significado)",
+}
+JOB_NEEDS = {job: "numista" for job in NUMISTA_JOBS} | {job: "ebay" for job in EBAY_JOBS}
 
 
-def enabled_job_specs(settings: Settings) -> list[tuple[str, timedelta, JobFactory]]:
-    """Jobs whose source has credentials. Missing keys are reported once at startup instead of
-    as a failed run every cadence; add them to .env and restart `serve`."""
-    disabled: set[str] = set()
-    if not settings.numista_api_key:
-        disabled |= NUMISTA_JOBS
-        log.warning("NUMISTA_API_KEY not set: %s disabled", ", ".join(sorted(NUMISTA_JOBS)))
-    if not settings.ebay_client_id or not settings.ebay_client_secret:
-        disabled |= EBAY_JOBS
-        log.warning(
-            "EBAY_CLIENT_ID/EBAY_CLIENT_SECRET not set: %s disabled", ", ".join(sorted(EBAY_JOBS))
-        )
-    return [spec for spec in JOB_SPECS if spec[0] not in disabled]
+async def job_configs(engine: AsyncEngine) -> dict[str, JobConfig]:
+    async with async_sessionmaker(engine)() as session:
+        return {c.job: c for c in (await session.scalars(select(JobConfig))).all()}
+
+
+async def enabled_job_specs(
+    engine: AsyncEngine, settings: Settings
+) -> list[tuple[str, timedelta, JobFactory]]:
+    """Every job is registered; the admin panel (job_config) switches them off or changes
+    the cadence, and jobs whose source has no key skip themselves with one log line."""
+    configs = await job_configs(engine)
+    out = []
+    for job_id, interval, runner in JOB_SPECS:
+        cfg = configs.get(job_id)
+        if cfg is not None and not cfg.enabled:
+            log.info("job %s disabled in Ajustes → Administración", job_id)
+            continue
+        if cfg is not None:
+            interval = timedelta(hours=cfg.interval_hours)
+        out.append((job_id, interval, runner))
+    return out
 
 
 def plan_next_run(last_success: datetime | None, interval: timedelta, now: datetime) -> datetime:
@@ -129,8 +181,8 @@ def plan_next_run(last_success: datetime | None, interval: timedelta, now: datet
 
 
 def plan_after_result(status: SyncStatus, interval: timedelta, now: datetime) -> datetime:
-    """A failed run resumes from its cursor soon; a successful one waits its full cadence."""
-    return now + (RETRY_DELAY if status != SyncStatus.SUCCEEDED else interval)
+    """A failed run resumes from its cursor soon; success and skips wait the full cadence."""
+    return now + (RETRY_DELAY if status == SyncStatus.FAILED else interval)
 
 
 async def last_success(engine: AsyncEngine, job: str) -> datetime | None:
@@ -146,7 +198,7 @@ async def last_success(engine: AsyncEngine, job: str) -> datetime | None:
 async def build_scheduler(engine: AsyncEngine, settings: Settings) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=UTC)
     now = datetime.now(UTC)
-    for job_id, interval, runner in enabled_job_specs(settings):
+    for job_id, interval, runner in await enabled_job_specs(engine, settings):
         next_run = plan_next_run(await last_success(engine, job_id), interval, now)
 
         async def run(runner=runner, job_id=job_id, interval=interval) -> None:

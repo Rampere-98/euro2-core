@@ -44,6 +44,8 @@ class ItemIn(BaseModel):
     acquired_price: Decimal | None = Field(default=None, ge=0)
     acquired_at: datetime | None = None
     notes: str | None = Field(default=None, max_length=2000)
+    # What you paid feeds the app's own market data unless you opt out (Ajustes → Privacidad)
+    share_price: bool = True
 
 
 class ValuationOut(BaseModel):

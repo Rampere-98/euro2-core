@@ -14,6 +14,8 @@ TEST_DB_URL = os.environ.get(
 )
 
 TABLES_IN_DELETE_ORDER = [
+    "app_setting",
+    "job_config",
     "watch_item",
     "estimate_history",
     "rating",
@@ -95,3 +97,25 @@ async def session(engine) -> AsyncSession:
 
 async def _table_exists(conn, name: str) -> bool:
     return bool((await conn.execute(text("select to_regclass(:n)"), {"n": name})).scalar())
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """Per-IP limits are process-wide; every test starts with a clean counter."""
+    from euro2core.api.ratelimit import limiter
+
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
+@pytest.fixture(autouse=True)
+def _no_developer_keys(monkeypatch):
+    """Tests never see the developer's .env keys: env vars override the file."""
+    from euro2core.config import get_settings
+
+    for name in ("NUMISTA_API_KEY", "EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET", "PUBLIC_ORIGINS"):
+        monkeypatch.setenv(name, "")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()

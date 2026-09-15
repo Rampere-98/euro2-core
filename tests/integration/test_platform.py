@@ -356,6 +356,7 @@ async def test_trade_swaps_pieces_both_ways(client, catalog, session):
 
 
 async def test_free_plan_listing_limit(client, catalog, session):
+    await _signup(client, "owner@example.org")  # the first account is the admin, exempt
     seller = await _signup(client, "limit@example.org")
     for _ in range(3):
         piece = await _verified_item(session, seller["_id"], catalog["de_a"])
@@ -374,6 +375,7 @@ async def test_free_plan_listing_limit(client, catalog, session):
 
 
 async def test_expert_validation_creates_a_documented_error_type(client, catalog, session):
+    await _signup(client, "owner@example.org")  # admin; the reporter must be a plain user
     reporter = await _signup(client, "rep@example.org")
     experts = [await _signup(client, f"exp{i}@example.org") for i in range(2)]
     for e in experts:
