@@ -12,6 +12,7 @@ collector portfolio with signed provenance, a peer-to-peer marketplace and a Flu
 | C · Knowledge | semantic search in any language, automatic news, expert error reports | `platform/semantic.py`, `platform/news.py`, `platform/community.py` |
 | D · Portfolio | collection, valuation by basis, achievements, price alerts (Pro) | `platform/portfolio.py`, `platform/achievements.py`, `platform/alerts.py` |
 | E · Marketplace | listings of verified pieces, offers, trades, reputation, certificates | `platform/marketplace.py`, `platform/provenance.py` |
+| F · Market assistant | reliability of listings, fair band, deals, buy/sell advice, price chart, watchlist | `pricing/reliability.py`, `pricing/market_intel.py`, `platform/market_assistant.py` |
 | App | Flutter (web/Android/iOS), Spanish UI, served by the API at `/app` | `app/` |
 
 ## What makes it different
@@ -174,3 +175,19 @@ Accounts use argon2 + JWT (`/auth/register`, `/auth/login`). Everything below is
   `news_item`s hourly. **Semantic search** — `GET /search/semantic?q=` embeds titles and
   descriptions with `multilingual-e5-small`, so "moneda con un puente" finds bridges in any
   language.
+
+## Module F — market assistant
+
+Every listing is scored before it is shown (`pricing/reliability.py`): lots, replicas, plated or
+colourised coins, weak matches and sub-face-value "sales" are discarded with a reason the app
+displays. On what remains, `pricing/market_intel.py` builds the coin's snapshot: realized range
+(min/p25/median/p75/max over 90 → 365 days), the fair band (p25–p75 of real sales, else catalog
+±20 %, else face value — always labelled), current reliable offers, trend (last 90 days vs the
+rest of the year), liquidity and best marketplace. From that: a buy verdict (`buy_now`, `fair`,
+`overpriced`, `wait`), a sell plan per piece (start price, floor, net after eBay fees vs the
+free euro2 marketplace, expected days, hold hint), a deals feed and movers.
+
+`GET /types/{id}/market` also returns the monthly chart data (sold min/median/max, asking
+median) and the estimate trail (`estimate_history`, appended whenever a recompute changes a
+value). Watching a coin (`/me/watchlist`, free) turns deals and > 20 % moves into notifications
+after every price recompute. Price alerts are free for every user.

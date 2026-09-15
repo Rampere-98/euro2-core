@@ -22,6 +22,7 @@ from euro2core.domain.eurozone import EURO_COUNTRIES
 from euro2core.domain.models import CoinIssue, CoinType, MarketObservation, PriceEstimate, SyncRun
 from euro2core.images.fetcher import ImageFetcher
 from euro2core.platform.alerts import check_alerts
+from euro2core.platform.market_assistant import notify_watchers
 from euro2core.platform.news import publish_pending
 from euro2core.platform.semantic import embed_types, get_text_embedder
 from euro2core.pricing.recompute import issues_with_observations, recompute_issue_prices, summarize
@@ -225,6 +226,7 @@ async def run_recompute_prices(engine: AsyncEngine) -> SyncRun:
                     stats["by_basis"][basis] = stats["by_basis"].get(basis, 0) + n
         async with sessions() as session:
             stats.update(await check_alerts(session))
+            stats["watch_notifications"] = await notify_watchers(session)
             await session.commit()
 
     return await _run_job(engine, "recompute_prices", body, stats)

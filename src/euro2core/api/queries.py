@@ -183,6 +183,7 @@ async def summaries_for(
             joint_issue_group=t.joint_issue_group,
             ecb_ref=t.ecb_ref,
             numista_type_id=t.numista_type_id,
+            base_type_id=t.base_type_id,
             issue_count=counts.get(t.id, 0),
             image=next(iter(images.get(t.id, [])), None),
         )

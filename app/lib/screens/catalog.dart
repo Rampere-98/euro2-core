@@ -18,6 +18,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   final _query = TextEditingController();
   String? _country;
   int? _year;
+  String? _category;
   bool _semantic = false;
   List<Map<String, dynamic>> _items = [];
   int _total = 0;
@@ -64,6 +65,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
           'limit': '60',
           if (_country case final c?) 'country': c,
           if (_year != null) 'year': '$_year',
+          ...?kCategoryQuery[_category],
         });
         _items = List<Map<String, dynamic>>.from(page['items']);
         _total = page['total'];
@@ -131,6 +133,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
               },
             ),
             const SizedBox(width: 12),
+            DropdownButton<String?>(
+              value: _category,
+              hint: const Text('Categoría'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Todas las categorías')),
+                for (final e in kCategoryLabel.entries)
+                  DropdownMenuItem(value: e.key, child: Text(e.value)),
+              ],
+              onChanged: (v) {
+                setState(() => _category = v);
+                _load();
+              },
+            ),
+            const SizedBox(width: 12),
             Text('$_total resultados', style: Theme.of(context).textTheme.labelMedium),
           ]),
         ),
@@ -154,3 +170,21 @@ class _CatalogScreenState extends State<CatalogScreen> {
     );
   }
 }
+
+const kCategoryLabel = {
+  'commemorative': 'Conmemorativas',
+  'plain': 'Conmemorativas nacionales',
+  'joint': 'Emisiones conjuntas',
+  'edition': 'Ediciones especiales (color, holograma)',
+  'circulation': 'Circulación',
+  'error': 'Errores documentados',
+};
+
+const kCategoryQuery = {
+  'commemorative': {'kind': 'commemorative'},
+  'plain': {'category': 'plain'},
+  'joint': {'category': 'joint'},
+  'edition': {'category': 'edition'},
+  'circulation': {'kind': 'circulation'},
+  'error': {'kind': 'error'},
+};

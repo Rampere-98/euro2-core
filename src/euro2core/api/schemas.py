@@ -44,6 +44,7 @@ class TypeSummary(BaseModel):
     joint_issue_group: str | None
     ecb_ref: str | None
     numista_type_id: int | None
+    base_type_id: uuid.UUID | None = None  # set for editions and errors derived from a design
     issue_count: int
     image: ImageOut | None
 
@@ -66,7 +67,6 @@ class TypeDetail(TypeSummary):
     series: str | None
     topic: str | None
     km_reference: str | None
-    base_type_id: uuid.UUID | None
     verification_status: str | None
     facts: dict[str, FactOut]
     issues: list[IssueSummary]

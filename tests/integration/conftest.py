@@ -14,6 +14,8 @@ TEST_DB_URL = os.environ.get(
 )
 
 TABLES_IN_DELETE_ORDER = [
+    "watch_item",
+    "estimate_history",
     "rating",
     "offer",
     "listing",

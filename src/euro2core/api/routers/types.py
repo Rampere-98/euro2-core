@@ -24,6 +24,12 @@ async def list_types(
     country: str | None = Query(default=None, min_length=2, max_length=2),
     year: int | None = None,
     kind: CoinKind | None = None,
+    category: str | None = Query(
+        default=None,
+        pattern="^(plain|joint|edition)$",
+        description="plain: national commemoratives; joint: euro-area joint issues; "
+        "edition: coloured/hologram editions and other derived designs",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = SessionDep,
@@ -36,6 +42,16 @@ async def list_types(
         stmt = stmt.where(CoinType.year == year)
     if kind:
         stmt = stmt.where(CoinType.kind == kind)
+    if category == "joint":
+        stmt = stmt.where(CoinType.joint_issue_group.is_not(None))
+    elif category == "edition":
+        stmt = stmt.where(CoinType.base_type_id.is_not(None), CoinType.kind != CoinKind.ERROR)
+    elif category == "plain":
+        stmt = stmt.where(
+            CoinType.kind == CoinKind.COMMEMORATIVE,
+            CoinType.joint_issue_group.is_(None),
+            CoinType.base_type_id.is_(None),
+        )
     total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
     rows = (
         await session.scalars(
@@ -75,7 +91,6 @@ async def get_type(
         series=_fact_value(facts, "series"),
         topic=_fact_value(facts, "topic"),
         km_reference=_fact_value(facts, "km_reference"),
-        base_type_id=coin_type.base_type_id,
         verification_status=coin_type.verification_status.value
         if coin_type.verification_status
         else None,

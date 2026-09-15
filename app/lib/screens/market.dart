@@ -3,20 +3,234 @@ import 'package:provider/provider.dart';
 
 import '../state.dart';
 import '../widgets.dart';
+import '../widgets/market_block.dart';
 import 'coin_detail.dart';
+import 'peer_market.dart';
 
-class MarketScreen extends StatefulWidget {
+/// The market assistant: deals, buy, sell, peer listings, watchlist.
+class MarketScreen extends StatelessWidget {
   const MarketScreen({super.key});
 
   @override
-  State<MarketScreen> createState() => _MarketScreenState();
+  Widget build(BuildContext context) => DefaultTabController(
+        length: 5,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Asistente de mercado'),
+            bottom: const TabBar(isScrollable: true, tabs: [
+              Tab(icon: Icon(Icons.local_fire_department), text: 'Chollos'),
+              Tab(icon: Icon(Icons.shopping_cart), text: 'Comprar'),
+              Tab(icon: Icon(Icons.sell), text: 'Vender'),
+              Tab(icon: Icon(Icons.people), text: 'Coleccionistas'),
+              Tab(icon: Icon(Icons.visibility), text: 'Seguimiento'),
+            ]),
+          ),
+          body: const TabBarView(children: [
+            _DealsTab(),
+            _BuyTab(),
+            _SellTab(),
+            PeerMarketTab(),
+            _WatchTab(),
+          ]),
+        ),
+      );
 }
 
-class _MarketScreenState extends State<MarketScreen> {
-  List<Map<String, dynamic>> _listings = [];
-  List<Map<String, dynamic>> _myOffers = [];
+// ------------------------------------------------------------------ Chollos
+
+class _DealsTab extends StatefulWidget {
+  const _DealsTab();
+
+  @override
+  State<_DealsTab> createState() => _DealsTabState();
+}
+
+class _DealsTabState extends State<_DealsTab> with AutomaticKeepAliveClientMixin {
+  List<Map<String, dynamic>> _deals = [];
+  List<Map<String, dynamic>> _movers = [];
   bool _loading = true;
   Object? _error;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final api = context.read<AppState>().api;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      _deals = List<Map<String, dynamic>>.from(await api.get('/market/deals', {'limit': '50'}));
+      _movers = List<Map<String, dynamic>>.from(await api.get('/market/movers', {'limit': '10'}));
+    } catch (e) {
+      _error = e;
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final api = context.read<AppState>().api;
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return ErrorBox(_error!, onRetry: _load);
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(padding: const EdgeInsets.all(12), children: [
+        const Text(
+          'Anuncios fiables al menos un 15 % por debajo del rango de ventas reales. Lotes, réplicas y monedas alteradas quedan fuera.',
+          style: TextStyle(fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        if (_deals.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Ahora mismo no hay chollos detectados. El mercado se revisa cada pocas horas; '
+                  'sigue tus monedas y te avisamos.'),
+            ),
+          ),
+        for (final d in _deals)
+          Card(
+            child: Column(children: [
+              TypeTile(
+                api: api,
+                type: Map<String, dynamic>.from(d['type']),
+                trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text(euro(d['listing']['price']), style: Theme.of(context).textTheme.titleMedium),
+                  Text('−${(d['listing']['discount_pct'] as num).toStringAsFixed(0)} %',
+                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                ]),
+                onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: d['type']['id']))),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 8, 6),
+                child: Row(children: [
+                  Expanded(
+                    child: Text(
+                      'rango real ${euro(d['band']['low'])} – ${euro(d['band']['high'])} · ${marketplaceName(d['listing']['marketplace'])}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  FilledButton.tonal(
+                      onPressed: () => openUrl(context, d['listing']['url']), child: const Text('Ir al anuncio')),
+                ]),
+              ),
+            ]),
+          ),
+        if (_movers.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Las que más se mueven', style: Theme.of(context).textTheme.titleMedium),
+          for (final m in _movers)
+            TypeTile(
+              api: api,
+              type: Map<String, dynamic>.from(m['type']),
+              trailing: Text(
+                '${(m['trend_pct'] as num) >= 0 ? '+' : ''}${(m['trend_pct'] as num).toStringAsFixed(0)} %',
+                style: TextStyle(
+                    color: (m['trend_pct'] as num) >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
+              ),
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: m['type']['id']))),
+            ),
+        ],
+      ]),
+    );
+  }
+}
+
+// ------------------------------------------------------------------ Comprar
+
+class _BuyTab extends StatefulWidget {
+  const _BuyTab();
+
+  @override
+  State<_BuyTab> createState() => _BuyTabState();
+}
+
+class _BuyTabState extends State<_BuyTab> with AutomaticKeepAliveClientMixin {
+  final _query = TextEditingController();
+  List<Map<String, dynamic>> _results = [];
+  String? _selected;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  Future<void> _search() async {
+    final api = context.read<AppState>().api;
+    final q = _query.text.trim();
+    if (q.length < 2) return;
+    try {
+      final page = await api.get('/search', {'q': q, 'limit': '20'});
+      setState(() {
+        _results = List<Map<String, dynamic>>.from(page['items']);
+        _selected = null;
+      });
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final api = context.read<AppState>().api;
+    return ListView(padding: const EdgeInsets.all(12), children: [
+      TextField(
+        controller: _query,
+        onSubmitted: (_) => _search(),
+        decoration: InputDecoration(
+          hintText: '¿Qué moneda quieres comprar?',
+          prefixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _search),
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      const SizedBox(height: 8),
+      if (_selected == null)
+        for (final t in _results)
+          TypeTile(api: api, type: t, onTap: () => setState(() => _selected = t['id']))
+      else ...[
+        TextButton.icon(
+            onPressed: () => setState(() => _selected = null),
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('Otra moneda')),
+        MarketBlock(typeId: _selected!),
+      ],
+      if (_results.isEmpty && _selected == null)
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Busca una moneda y te diremos si el precio actual es un chollo, justo o caro, '
+              'con enlaces directos a los anuncios fiables.'),
+        ),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Vender
+
+class _SellTab extends StatefulWidget {
+  const _SellTab();
+
+  @override
+  State<_SellTab> createState() => _SellTabState();
+}
+
+class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
+  List<Map<String, dynamic>> _items = [];
+  final Map<String, Map<String, dynamic>> _advice = {};
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -26,208 +240,58 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Future<void> _load() async {
     final state = context.read<AppState>();
+    if (!state.loggedIn) {
+      setState(() => _loading = false);
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final page = await state.api.get('/market/listings', {'limit': '50'});
-      _listings = List<Map<String, dynamic>>.from(page['items']);
-      _myOffers = state.loggedIn
-          ? List<Map<String, dynamic>>.from(await state.api.get('/me/offers'))
-          : [];
+      final col = await state.api.get('/me/collection');
+      _items = List<Map<String, dynamic>>.from(col['items']);
+      for (final it in _items) {
+        _advice[it['id']] =
+            Map<String, dynamic>.from(await state.api.get('/me/collection/${it['id']}/sell-advice'));
+      }
     } catch (e) {
       _error = e;
     }
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _publish() async {
+  Future<void> _publish(Map<String, dynamic> item, Map<String, dynamic> advice) async {
     final state = context.read<AppState>();
-    if (!state.loggedIn) {
-      showError(context, 'Inicia sesión para vender');
+    if (item['verified_at'] == null) {
+      showError(context, 'Verifica la pieza con una foto (Colección) antes de publicarla');
       return;
     }
-    final col = await state.api.get('/me/collection');
-    final verified = List<Map<String, dynamic>>.from(col['items'])
-        .where((i) => i['verified_at'] != null)
-        .toList();
-    if (!mounted) return;
-    if (verified.isEmpty) {
-      showError(context, 'Solo se publican piezas verificadas con foto (Colección → Verificar)');
-      return;
-    }
-    Map<String, dynamic>? chosen = verified.first;
-    final price = TextEditingController();
-    final desc = TextEditingController();
-    bool trades = true;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: const Text('Publicar en el mercado'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              DropdownButtonFormField<Map<String, dynamic>>(
-                initialValue: chosen,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Pieza verificada'),
-                items: [
-                  for (final v in verified)
-                    DropdownMenuItem(
-                        value: v,
-                        child: Text(v['type']['title'] ?? '', overflow: TextOverflow.ellipsis)),
-                ],
-                onChanged: (v) => setD(() => chosen = v),
-              ),
-              TextField(
-                controller: price,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Precio (€) — vacío = solo intercambio'),
-              ),
-              TextField(controller: desc, decoration: const InputDecoration(labelText: 'Descripción')),
-              SwitchListTile(
-                value: trades,
-                onChanged: (v) => setD(() => trades = v),
-                title: const Text('Acepto intercambios'),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Publicar')),
-          ],
-        ),
-      ),
-    );
-    if (ok != true || chosen == null) return;
-    try {
-      await state.api.post('/market/listings', body: {
-        'item_id': chosen!['id'],
-        if (price.text.trim().isNotEmpty) 'price': price.text.trim().replaceAll(',', '.'),
-        'accepts_trades': trades,
-        if (desc.text.trim().isNotEmpty) 'description': desc.text.trim(),
-      });
-      await _load();
-    } catch (e) {
-      if (mounted) showError(context, e);
-    }
-  }
-
-  Future<void> _offer(Map<String, dynamic> listing) async {
-    final state = context.read<AppState>();
-    if (!state.loggedIn) {
-      showError(context, 'Inicia sesión para hacer ofertas');
-      return;
-    }
-    final amount = TextEditingController(text: listing['price']?.toString() ?? '');
-    final msg = TextEditingController();
+    final price = TextEditingController(text: advice['start'].toString());
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hacer una oferta'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-            controller: amount,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Importe (€)'),
-          ),
-          TextField(controller: msg, decoration: const InputDecoration(labelText: 'Mensaje')),
-        ]),
+        title: const Text('Publicar entre coleccionistas'),
+        content: TextField(
+          controller: price,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(labelText: 'Precio (€) — sugerido ${euro(advice['start'])}'),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Enviar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Publicar')),
         ],
       ),
     );
     if (ok != true) return;
     try {
-      await state.api.post('/market/listings/${listing['id']}/offers', body: {
-        if (amount.text.trim().isNotEmpty) 'amount': amount.text.trim().replaceAll(',', '.'),
-        if (msg.text.trim().isNotEmpty) 'message': msg.text.trim(),
+      await state.api.post('/market/listings', body: {
+        'item_id': item['id'],
+        'price': price.text.trim().replaceAll(',', '.'),
+        'accepts_trades': true,
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Oferta enviada')));
-      }
-      await _load();
-    } catch (e) {
-      if (mounted) showError(context, e);
-    }
-  }
-
-  Future<void> _manageOffers(Map<String, dynamic> listing) async {
-    final api = context.read<AppState>().api;
-    try {
-      final offers = List<Map<String, dynamic>>.from(await api.get('/market/listings/${listing['id']}/offers'));
-      if (!mounted) return;
-      await showModalBottomSheet(
-        context: context,
-        showDragHandle: true,
-        builder: (ctx) => ListView(padding: const EdgeInsets.all(16), children: [
-          Text('Ofertas recibidas (${offers.length})', style: Theme.of(context).textTheme.titleMedium),
-          if (offers.isEmpty) const Text('Todavía nadie ha ofertado.'),
-          for (final o in offers)
-            ListTile(
-              title: Text(o['amount'] != null ? euro(o['amount']) : 'Intercambio'),
-              subtitle: Text('${o['message'] ?? ''} · ${kOfferStatus[o['status']] ?? o['status']}'),
-              trailing: o['status'] == 'pending'
-                  ? Row(mainAxisSize: MainAxisSize.min, children: [
-                      IconButton(
-                          icon: const Icon(Icons.check, color: Colors.green),
-                          onPressed: () async {
-                            await api.post('/market/offers/${o['id']}/accept');
-                            if (ctx.mounted) Navigator.pop(ctx);
-                          }),
-                      IconButton(
-                          icon: const Icon(Icons.close, color: Colors.red),
-                          onPressed: () async {
-                            await api.post('/market/offers/${o['id']}/reject');
-                            if (ctx.mounted) Navigator.pop(ctx);
-                          }),
-                    ])
-                  : null,
-            ),
-          TextButton(
-              onPressed: () async {
-                await api.delete('/market/listings/${listing['id']}');
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Retirar anuncio')),
-        ]),
-      );
-      await _load();
-    } catch (e) {
-      if (mounted) showError(context, e);
-    }
-  }
-
-  Future<void> _rate(Map<String, dynamic> offer) async {
-    final api = context.read<AppState>().api;
-    int stars = 5;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: const Text('Valorar al vendedor'),
-          content: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            for (var i = 1; i <= 5; i++)
-              IconButton(
-                  icon: Icon(i <= stars ? Icons.star : Icons.star_border, color: Colors.amber),
-                  onPressed: () => setD(() => stars = i)),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Valorar')),
-          ],
-        ),
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await api.post('/market/offers/${offer['id']}/rate', body: {'stars': stars});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gracias por valorar')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anuncio publicado sin comisiones')));
       }
     } catch (e) {
       if (mounted) showError(context, e);
@@ -236,105 +300,145 @@ class _MarketScreenState extends State<MarketScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final state = context.watch<AppState>();
-    final me = state.user?['id'];
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mercado entre coleccionistas'),
-        actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-          onPressed: _publish, icon: const Icon(Icons.sell), label: const Text('Vender')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? ErrorBox(_error!, onRetry: _load)
-              : ListView(padding: const EdgeInsets.fromLTRB(12, 12, 12, 80), children: [
-                  const Text(
-                    'Solo se venden piezas verificadas con foto. Cada venta queda en la trazabilidad de la moneda.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  if (_myOffers.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text('Mis ofertas', style: Theme.of(context).textTheme.titleMedium),
-                    for (final o in _myOffers)
-                      ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.local_offer),
-                        title: Text(o['amount'] != null ? euro(o['amount']) : 'Intercambio'),
-                        subtitle: Text(kOfferStatus[o['status']] ?? o['status']),
-                        trailing: o['status'] == 'accepted'
-                            ? TextButton(onPressed: () => _rate(o), child: const Text('Valorar'))
-                            : null,
-                      ),
-                  ],
-                  const SizedBox(height: 8),
-                  Text('Anuncios activos (${_listings.length})', style: Theme.of(context).textTheme.titleMedium),
-                  if (_listings.isEmpty)
-                    const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('No hay anuncios todavía. ¡Sé el primero en vender!')),
-                  for (final l in _listings)
-                    _ListingCard(
-                      listing: l,
-                      mine: l['seller']['id'] == me,
-                      onOpen: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: l['type']['id']))),
-                      onAction: () => l['seller']['id'] == me ? _manageOffers(l) : _offer(l),
+    if (!state.loggedIn) {
+      return const Center(
+          child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('Inicia sesión y añade tus monedas: te diremos a cuánto venderlas, dónde y cuánto te queda neto.',
+                  textAlign: TextAlign.center)));
+    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return ErrorBox(_error!, onRetry: _load);
+    final api = state.api;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(padding: const EdgeInsets.all(12), children: [
+        if (_items.isEmpty)
+          const Padding(padding: EdgeInsets.all(16), child: Text('Tu colección está vacía.')),
+        for (final it in _items)
+          if (_advice[it['id']] case final a?)
+            Card(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                TypeTile(
+                  api: api,
+                  type: Map<String, dynamic>.from(it['type']),
+                  trailing: Text(euro(a['start']), style: Theme.of(context).textTheme.titleMedium),
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: it['type']['id']))),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Pide ${euro(a['start'])}, no bajes de ${euro(a['floor'])} '
+                        '(${kGradeLabel[a['grade']] ?? a['grade']}; base: ${kBasisLabel[a['band']['basis']] ?? a['band']['basis']})'),
+                    Text(
+                      'Neto: ${euro(a['net_euro2'])} aquí (sin comisión) · ${euro(a['net_ebay'])} en eBay'
+                      '${a['expected_days'] != null ? ' · ~${a['expected_days']} días para vender' : ''}'
+                      '${a['best_marketplace'] != null ? ' · mejor plaza: ${marketplaceName(a['best_marketplace'])}' : ''}',
+                      style: const TextStyle(fontSize: 12),
                     ),
-                ]),
+                    if (a['hold'] == true)
+                      const Text('Está subiendo: si no tienes prisa, espera.',
+                          style: TextStyle(fontSize: 12, color: Colors.green)),
+                    if (a['realized'] != null)
+                      Text(
+                        'Ventas reales: ${euro(a['realized']['min'])} – ${euro(a['realized']['max'])} (${a['realized']['n']})',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.tonal(
+                          onPressed: () => _publish(it, a), child: const Text('Publicar al precio sugerido')),
+                    ),
+                  ]),
+                ),
+              ]),
+            ),
+      ]),
     );
   }
 }
 
-const kOfferStatus = {
-  'pending': 'pendiente',
-  'accepted': 'aceptada',
-  'rejected': 'rechazada',
-  'withdrawn': 'retirada',
-};
+// ------------------------------------------------------------------ Seguimiento
 
-class _ListingCard extends StatelessWidget {
-  const _ListingCard({required this.listing, required this.mine, required this.onOpen, required this.onAction});
-  final Map<String, dynamic> listing;
-  final bool mine;
-  final VoidCallback onOpen, onAction;
+class _WatchTab extends StatefulWidget {
+  const _WatchTab();
+
+  @override
+  State<_WatchTab> createState() => _WatchTabState();
+}
+
+class _WatchTabState extends State<_WatchTab> with AutomaticKeepAliveClientMixin {
+  List<Map<String, dynamic>> _rows = [];
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final state = context.read<AppState>();
+    if (!state.loggedIn) {
+      setState(() => _loading = false);
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      _rows = List<Map<String, dynamic>>.from(await state.api.get('/me/watchlist'));
+    } catch (e) {
+      _error = e;
+    }
+    if (mounted) setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final api = context.read<AppState>().api;
-    final seller = Map<String, dynamic>.from(listing['seller']);
-    final rep = Map<String, dynamic>.from(seller['reputation'] ?? {});
-    final issue = Map<String, dynamic>.from(listing['issue']);
-    return Card(
-      child: Column(children: [
-        TypeTile(
-          api: api,
-          type: Map<String, dynamic>.from(listing['type']),
-          onTap: onOpen,
-          trailing: Text(listing['price'] != null ? euro(listing['price']) : 'Cambio',
-              style: Theme.of(context).textTheme.titleMedium),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 8, 6),
-          child: Row(children: [
-            Expanded(
-              child: Wrap(children: [
-                Chip2(kGradeLabel[listing['grade']] ?? listing['grade']),
-                Chip2(kFinishLabel[issue['finish']] ?? issue['finish']),
-                if (listing['accepts_trades'] == true) const Chip2('acepta cambios'),
-                Chip2('${seller['display_name']} · ★ ${rep['average_stars'] ?? '—'} (${rep['ratings'] ?? 0} val., ${rep['completed_transactions'] ?? 0} op.)'),
-              ]),
+    super.build(context);
+    final state = context.watch<AppState>();
+    if (!state.loggedIn) {
+      return const Center(
+          child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('Inicia sesión y pulsa "Seguir" en cualquier moneda: recibirás un aviso con cada chollo y cada movimiento de precio.',
+                  textAlign: TextAlign.center)));
+    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return ErrorBox(_error!, onRetry: _load);
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(padding: const EdgeInsets.all(12), children: [
+        if (_rows.isEmpty)
+          const Padding(padding: EdgeInsets.all(16), child: Text('Todavía no sigues ninguna moneda.')),
+        for (final w in _rows)
+          Card(
+            child: TypeTile(
+              api: state.api,
+              type: Map<String, dynamic>.from(w['type']),
+              trailing: _verdictChip(w['buy']['verdict']),
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: w['type']['id']))),
             ),
-            TextButton(onPressed: onAction, child: Text(mine ? 'Gestionar' : 'Ofertar')),
-          ]),
-        ),
-        if (listing['description'] != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Align(alignment: Alignment.centerLeft, child: Text(listing['description'], style: const TextStyle(fontSize: 12))),
           ),
       ]),
     );
   }
+
+  Widget _verdictChip(String v) => switch (v) {
+        'buy_now' => const Chip2('chollo', color: Colors.green),
+        'fair' => const Chip2('precio justo', color: Colors.blue),
+        'overpriced' => const Chip2('cara', color: Colors.orange),
+        'wait' => const Chip2('esperar', color: Colors.orange),
+        _ => const Chip2('sin ofertas'),
+      };
 }

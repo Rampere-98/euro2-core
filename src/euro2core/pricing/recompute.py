@@ -10,7 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.domain.enums import Grade
-from euro2core.domain.models import DomainEvent, MarketObservation, PriceEstimate
+from euro2core.domain.models import (
+    DomainEvent,
+    EstimateHistory,
+    MarketObservation,
+    PriceEstimate,
+)
 from euro2core.pricing.estimator import (
     EXTENDED_WINDOW_DAYS,
     GLOBAL_REGION,
@@ -82,6 +87,10 @@ async def recompute_issue_prices(
             if region == GLOBAL_REGION:
                 outlier_ids.update(est.outlier_ids)
             previous = existing.get(key)
+            if region == GLOBAL_REGION and (
+                previous is None or previous.median != est.median or previous.basis != est.basis
+            ):
+                session.add(_history_row(issue_id, est))  # the chart keeps every change
             if previous is None:
                 session.add(_to_row(issue_id, est))
             else:
@@ -112,6 +121,18 @@ def _to_row(issue_id: uuid.UUID, est: Estimate) -> PriceEstimate:
         confidence=est.confidence,
         basis=est.basis,
         method_version=est.method_version,
+    )
+
+
+def _history_row(issue_id: uuid.UUID, est: Estimate) -> EstimateHistory:
+    return EstimateHistory(
+        issue_id=issue_id,
+        grade=est.grade,
+        basis=est.basis,
+        median=est.median,
+        p25=est.p25,
+        p75=est.p75,
+        n_obs=est.n_obs,
     )
 
 

@@ -453,6 +453,44 @@ class UserAchievement(Base):
     __table_args__ = (UniqueConstraint("user_id", "code", name="uq_user_achievement"),)
 
 
+class EstimateHistory(Base):
+    """Append-only trail of the global estimate per issue and grade, written whenever a
+    recompute changes the median: the "what it was worth / what it is worth" chart."""
+
+    __tablename__ = "estimate_history"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    issue_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coin_issue.id", ondelete="CASCADE"), nullable=False
+    )
+    grade: Mapped[Grade] = mapped_column(_enum(Grade, "grade"), nullable=False)
+    basis: Mapped[str] = mapped_column(String(20), nullable=False)
+    median: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    p25: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    p75: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    n_obs: Mapped[int] = mapped_column(Integer, nullable=False)
+    computed_at: Mapped[datetime] = _now()
+
+    __table_args__ = (Index("ix_estimate_history_issue_at", "issue_id", "computed_at"),)
+
+
+class WatchItem(Base):
+    """A coin the user follows: deals and price moves on it become notifications."""
+
+    __tablename__ = "watch_item"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    type_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("coin_type.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = _now()
+
+    __table_args__ = (UniqueConstraint("user_id", "type_id", name="uq_watch_item"),)
+
+
 class PriceAlert(Base):
     __tablename__ = "price_alert"
 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../state.dart';
 import '../widgets.dart';
+import '../widgets/market_block.dart';
 
 class CoinDetailScreen extends StatefulWidget {
   const CoinDetailScreen({super.key, required this.typeId});
@@ -125,6 +126,7 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
           if (t['kind'] == 'commemorative') const Chip2('conmemorativa'),
           if (t['kind'] == 'circulation') const Chip2('circulación'),
           if (t['kind'] == 'error') Chip2('error documentado', color: scheme.error),
+          if (t['kind'] != 'error' && t['base_type_id'] != null) const Chip2('edición especial'),
           if (t['joint_issue_group'] != null) const Chip2('emisión conjunta'),
           if (t['ecb_ref'] != null) const Chip2('BCE'),
           if (t['numista_type_id'] != null) const Chip2('Numista'),
@@ -134,6 +136,8 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
           const SizedBox(height: 12),
           Text(t['description'], style: Theme.of(context).textTheme.bodyMedium),
         ],
+        const SizedBox(height: 16),
+        MarketBlock(typeId: t['id']),
         const SizedBox(height: 16),
         Text('Datos con procedencia', style: Theme.of(context).textTheme.titleMedium),
         for (final e in facts.entries.where((e) => e.key != 'description'))

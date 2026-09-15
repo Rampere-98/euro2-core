@@ -236,11 +236,9 @@ async def test_achievements_and_leaderboard(client, catalog):
     assert board[0]["score"] > 1  # rarity bonus on top of the piece count
 
 
-async def test_price_alerts_are_a_pro_feature(client, catalog):
+async def test_price_alerts_are_free_for_every_user(client, catalog):
     auth = await _signup(client, "alerts@example.org")
     body = {"issue_id": str(catalog["va"]), "direction": "above", "threshold": "40"}
-    assert (await client.post("/me/alerts", json=body, headers=auth)).status_code == 402
-    assert (await client.post("/me/plan/pro", headers=auth)).json()["plan"] == "pro"
     created = await client.post("/me/alerts", json=body, headers=auth)
     assert created.status_code == 201
 

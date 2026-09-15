@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from euro2core.api.auth_deps import CurrentUser, ProUser
+from euro2core.api.auth_deps import CurrentUser
 from euro2core.api.deps import LangDep, SessionDep
 from euro2core.api.queries import summaries_for
 from euro2core.api.schemas import IssueSummary, TypeSummary
@@ -263,13 +263,13 @@ async def leaderboard(session: AsyncSession = SessionDep) -> list[dict[str, Any]
 
 
 @router.get("/me/alerts", response_model=list[AlertOut])
-async def my_alerts(user: ProUser, session: AsyncSession = SessionDep):
+async def my_alerts(user: CurrentUser, session: AsyncSession = SessionDep):
     rows = (await session.scalars(select(PriceAlert).where(PriceAlert.user_id == user.id))).all()
     return [AlertOut.model_validate(r) for r in rows]
 
 
 @router.post("/me/alerts", response_model=AlertOut, status_code=201)
-async def create_alert(body: AlertIn, user: ProUser, session: AsyncSession = SessionDep):
+async def create_alert(body: AlertIn, user: CurrentUser, session: AsyncSession = SessionDep):
     if await session.get(CoinIssue, body.issue_id) is None:
         raise HTTPException(status_code=404, detail="issue not found")
     alert = PriceAlert(user_id=user.id, **body.model_dump())
@@ -279,7 +279,7 @@ async def create_alert(body: AlertIn, user: ProUser, session: AsyncSession = Ses
 
 
 @router.delete("/me/alerts/{alert_id}", status_code=204)
-async def delete_alert(alert_id: uuid.UUID, user: ProUser, session: AsyncSession = SessionDep):
+async def delete_alert(alert_id: uuid.UUID, user: CurrentUser, session: AsyncSession = SessionDep):
     alert = await session.get(PriceAlert, alert_id)
     if alert is None or alert.user_id != user.id:
         raise HTTPException(status_code=404, detail="alert not found")
