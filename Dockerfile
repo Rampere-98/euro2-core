@@ -13,7 +13,7 @@ WORKDIR /src
 COPY app/pubspec.yaml app/pubspec.lock ./app/
 RUN cd app && flutter pub get
 COPY app ./app
-RUN cd app && flutter build web --release --base-href /app/
+RUN cd app && flutter build web --release --wasm --base-href /app/
 
 # ---- Python runtime ---------------------------------------------------------------------
 FROM python:3.12-slim AS runtime

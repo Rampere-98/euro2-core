@@ -28,10 +28,13 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
   Future<void> _load() async {
     final api = context.read<AppState>().api;
     try {
-      final t = Map<String, dynamic>.from(await api.get('/types/${widget.typeId}'));
-      final issues = List<Map<String, dynamic>>.from(t['issues']);
-      final details = await Future.wait(
-          issues.map((i) => api.get('/issues/${i['id']}').then((d) => Map<String, dynamic>.from(d))));
+      // two requests in parallel: the design and all its variants with prices (not one per variant)
+      final results = await Future.wait([
+        api.get('/types/${widget.typeId}'),
+        api.get('/types/${widget.typeId}/issues'),
+      ]);
+      final t = Map<String, dynamic>.from(results[0]);
+      final details = List<Map<String, dynamic>>.from(results[1]);
       setState(() {
         _type = t;
         for (final d in details) {

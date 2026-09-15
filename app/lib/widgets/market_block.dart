@@ -69,11 +69,7 @@ class _MarketBlockState extends State<MarketBlock> {
     final state = context.read<AppState>();
     try {
       final m = Map<String, dynamic>.from(await state.api.get('/types/${widget.typeId}/market'));
-      var watching = false;
-      if (state.loggedIn) {
-        final list = List<Map<String, dynamic>>.from(await state.api.get('/me/watchlist'));
-        watching = list.any((w) => w['type']['id'] == widget.typeId);
-      }
+      final watching = await state.isWatching(widget.typeId);
       if (mounted) {
         setState(() {
           _m = m;
@@ -92,11 +88,7 @@ class _MarketBlockState extends State<MarketBlock> {
       return;
     }
     try {
-      if (_watching) {
-        await state.api.delete('/me/watchlist/${widget.typeId}');
-      } else {
-        await state.api.post('/me/watchlist', body: {'type_id': widget.typeId});
-      }
+      await state.setWatching(widget.typeId, !_watching);
       setState(() => _watching = !_watching);
     } catch (e) {
       if (mounted) showError(context, e);
@@ -153,7 +145,7 @@ class _MarketBlockState extends State<MarketBlock> {
       const SizedBox(height: 12),
       if (history.any((h) => h['sold_n'] > 0 || h['ask_n'] > 0) || estimates.isNotEmpty) ...[
         Text('Evolución del precio', style: Theme.of(context).textTheme.titleSmall),
-        SizedBox(height: 200, child: PriceChart(history: history, estimates: estimates)),
+        SizedBox(height: 200, child: RepaintBoundary(child: PriceChart(history: history, estimates: estimates))),
         const _Legend(),
         const SizedBox(height: 12),
       ] else
@@ -327,32 +319,58 @@ class _LegendItem extends StatelessWidget {
 }
 
 /// Monthly realized min/median/max, asking median, and the estimate trail.
-class PriceChart extends StatelessWidget {
+class PriceChart extends StatefulWidget {
   const PriceChart({super.key, required this.history, required this.estimates});
   final List<Map<String, dynamic>> history;
   final List<Map<String, dynamic>> estimates;
 
-  double? _d(dynamic v) => v == null ? null : double.tryParse(v.toString());
+  @override
+  State<PriceChart> createState() => _PriceChartState();
+}
+
+class _PriceChartState extends State<PriceChart> {
+  // Spots are parsed once per data set, not on every rebuild (tooltips rebuild the chart).
+  late List<String> months;
+  late List<FlSpot> median, minS, maxS, asks, est;
 
   @override
-  Widget build(BuildContext context) {
-    final months = history.map((h) => h['month'] as String).toList();
+  void initState() {
+    super.initState();
+    _compute();
+  }
+
+  @override
+  void didUpdateWidget(PriceChart old) {
+    super.didUpdateWidget(old);
+    if (old.history != widget.history || old.estimates != widget.estimates) _compute();
+  }
+
+  double? _d(dynamic v) => v == null ? null : double.tryParse(v.toString());
+
+  void _compute() {
+    final history = widget.history;
+    months = history.map((h) => h['month'] as String).toList();
     List<FlSpot> spots(String key) => [
           for (var i = 0; i < history.length; i++)
             if (_d(history[i][key]) != null) FlSpot(i.toDouble(), _d(history[i][key])!),
         ];
-    final median = spots('sold_median');
-    final minS = spots('sold_min');
-    final maxS = spots('sold_max');
-    final asks = spots('ask_median');
+    median = spots('sold_median');
+    minS = spots('sold_min');
+    maxS = spots('sold_max');
+    asks = spots('ask_median');
     // estimate trail mapped onto the month axis by its date
-    final est = <FlSpot>[];
-    for (final e in estimates) {
+    est = [];
+    for (final e in widget.estimates) {
       final at = e['at'] as String;
       final idx = months.indexOf(at.substring(0, 7));
       final v = _d(e['median']);
       if (idx >= 0 && v != null) est.add(FlSpot(idx.toDouble(), v));
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final history = widget.history;
     final all = [...median, ...minS, ...maxS, ...asks, ...est];
     if (all.isEmpty) return const SizedBox.shrink();
     final maxY = all.map((s) => s.y).reduce((a, b) => a > b ? a : b) * 1.15;

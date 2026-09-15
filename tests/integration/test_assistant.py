@@ -236,3 +236,23 @@ async def test_a_collector_can_keep_a_purchase_price_private(client, catalog):
     assert r.status_code == 201
     m = (await client.get(f"/types/{catalog['de_type']}/market")).json()
     assert m["realized"] is None  # nothing entered the market data
+
+
+async def test_sell_advice_for_the_whole_collection_in_one_call(client, catalog, session):
+    # the app's Vender tab used to fetch one advice per piece; on a phone that is N round trips
+    await _seed_market(session, catalog["de_a"], prices=SALES)
+    auth = await _signup(client, "seller3@example.org")
+    ids = []
+    for grade in ("bu", "unc"):
+        r = await client.post(
+            "/me/collection", json={"issue_id": str(catalog["de_a"]), "grade": grade}, headers=auth
+        )
+        ids.append(r.json()["id"])
+    r = await client.get("/me/collection/sell-advice", headers=auth)
+    assert r.status_code == 200
+    batch = r.json()
+    assert [row["item_id"] for row in batch] == ids
+    assert {row["advice"]["grade"] for row in batch} == {"bu", "unc"}
+    single = (await client.get(f"/me/collection/{ids[0]}/sell-advice", headers=auth)).json()
+    assert batch[0]["advice"]["start"] == single["start"]
+    assert (await client.get("/me/collection/sell-advice")).status_code == 401

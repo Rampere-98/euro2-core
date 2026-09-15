@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -39,6 +40,9 @@ log = logging.getLogger(__name__)
 WEB_BUILD_DIR = Path(__file__).resolve().parents[3] / "app" / "build" / "web"
 # Public landing page (site/) served at the root when present; API routes take precedence.
 SITE_DIR = Path(__file__).resolve().parents[3] / "site"
+# The Flutter wasm build ships .wasm/.mjs files; Windows registries often lack these types.
+mimetypes.add_type("application/wasm", ".wasm")
+mimetypes.add_type("text/javascript", ".mjs")
 
 
 def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) -> FastAPI:

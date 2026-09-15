@@ -26,15 +26,21 @@ async def get_issue(
     if issue is None:
         raise HTTPException(status_code=404, detail="issue not found")
     coin_type = await session.get(CoinType, issue.type_id)
+    summary = (await summaries_for(session, [coin_type], lang))[0]
+    return await issue_detail(session, issue, summary)
+
+
+async def issue_detail(session: AsyncSession, issue: CoinIssue, type_summary) -> IssueDetail:
+    """Everything the coin page shows for one variant: prices per grade, rarity, facts, photos."""
     estimates = (
         await session.scalars(
             select(PriceEstimate)
-            .where(PriceEstimate.issue_id == issue_id)
+            .where(PriceEstimate.issue_id == issue.id)
             .order_by(PriceEstimate.region, PriceEstimate.grade)
         )
     ).all()
     rarity = (
-        await session.scalars(select(RarityScore).where(RarityScore.issue_id == issue_id))
+        await session.scalars(select(RarityScore).where(RarityScore.issue_id == issue.id))
     ).first()
     return IssueDetail(
         id=issue.id,
@@ -44,11 +50,11 @@ async def get_issue(
         packaging=issue.packaging.value,
         mintage=issue.mintage,
         numista_issue_id=issue.numista_issue_id,
-        type=(await summaries_for(session, [coin_type], lang))[0],
-        facts=await facts_for(session, "coin_issue", issue_id),
+        type=type_summary,
+        facts=await facts_for(session, "coin_issue", issue.id),
         estimates=[EstimateOut.model_validate(e) for e in estimates],
         rarity=RarityOut.model_validate(rarity) if rarity else None,
-        images=await images_for_issue(session, issue_id),
+        images=await images_for_issue(session, issue.id),
     )
 
 

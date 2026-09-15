@@ -59,8 +59,7 @@ class _NewsScreenState extends State<NewsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final isExpert = state.user?['role'] == 'expert' || state.user?['role'] == 'admin';
+    final isExpert = context.select((AppState s) => s.user?['role'] == 'expert' || s.user?['role'] == 'admin');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Noticias y comunidad'),
@@ -70,7 +69,7 @@ class _NewsScreenState extends State<NewsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? ErrorBox(_error!, onRetry: _load)
-              : ListView(padding: const EdgeInsets.all(12), children: [
+              : SectionList(header: [
                   if (_reports.isNotEmpty) ...[
                     Text('Errores de acuñación reportados', style: Theme.of(context).textTheme.titleMedium),
                     const Text('Un error entra en el catálogo cuando dos expertos lo validan.',
@@ -110,8 +109,9 @@ class _NewsScreenState extends State<NewsScreen> {
                     const Padding(
                         padding: EdgeInsets.all(16),
                         child: Text('Sin noticias aún. Se publican solas cuando el catálogo cambia.')),
-                  for (final n in _news)
-                    ListTile(
+                ], itemCount: _news.length, itemBuilder: (context, i) {
+                  final n = _news[i];
+                  return ListTile(
                       leading: Icon(_icon(n['kind'])),
                       title: Text(n['title']),
                       subtitle: Text('${n['body'] ?? ''}\n${'${n['published_at']}'.substring(0, 10)}'),
@@ -120,8 +120,8 @@ class _NewsScreenState extends State<NewsScreen> {
                           ? () => Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) => CoinDetailScreen(typeId: n['entity_id'])))
                           : null,
-                    ),
-                ]),
+                    );
+                }),
     );
   }
 }

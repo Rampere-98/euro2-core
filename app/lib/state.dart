@@ -10,6 +10,8 @@ class AppState extends ChangeNotifier {
   final Euro2Api api;
   Map<String, dynamic>? user;
   int unreadNotifications = 0;
+  /// Type ids the user follows, loaded once per session so coin pages need not fetch the list.
+  Set<String>? watchlistIds;
   final String defaultBaseUrl;
 
   // Preferences (Ajustes), persisted locally on this device.
@@ -120,6 +122,7 @@ class AppState extends ChangeNotifier {
   Future<void> logout() async {
     api.token = null;
     user = null;
+    watchlistIds = null;
     (await SharedPreferences.getInstance()).remove('token');
     notifyListeners();
   }
@@ -134,5 +137,24 @@ class AppState extends ChangeNotifier {
     final list = List<Map<String, dynamic>>.from(await api.get('/me/notifications'));
     unreadNotifications = list.where((n) => n['read_at'] == null).length;
     notifyListeners();
+  }
+
+  Future<bool> isWatching(String typeId) async {
+    if (!loggedIn) return false;
+    if (watchlistIds == null) {
+      final list = List<Map<String, dynamic>>.from(await api.get('/me/watchlist'));
+      watchlistIds = {for (final w in list) w['type']['id'] as String};
+    }
+    return watchlistIds!.contains(typeId);
+  }
+
+  Future<void> setWatching(String typeId, bool watching) async {
+    if (watching) {
+      await api.post('/me/watchlist', body: {'type_id': typeId});
+      watchlistIds?.add(typeId);
+    } else {
+      await api.delete('/me/watchlist/$typeId');
+      watchlistIds?.remove(typeId);
+    }
   }
 }

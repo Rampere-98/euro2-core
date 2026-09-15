@@ -81,22 +81,26 @@ class _DealsTabState extends State<_DealsTab> with AutomaticKeepAliveClientMixin
     if (_error != null) return ErrorBox(_error!, onRetry: _load);
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(padding: const EdgeInsets.all(12), children: [
-        const Text(
-          'Anuncios fiables al menos un 15 % por debajo del rango de ventas reales. Lotes, réplicas y monedas alteradas quedan fuera.',
-          style: TextStyle(fontSize: 12),
-        ),
-        const SizedBox(height: 8),
-        if (_deals.isEmpty)
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Ahora mismo no hay chollos detectados. El mercado se revisa cada pocas horas; '
-                  'sigue tus monedas y te avisamos.'),
-            ),
+      child: SectionList(
+        header: [
+          const Text(
+            'Anuncios fiables al menos un 15 % por debajo del rango de ventas reales. Lotes, réplicas y monedas alteradas quedan fuera.',
+            style: TextStyle(fontSize: 12),
           ),
-        for (final d in _deals)
-          Card(
+          const SizedBox(height: 8),
+          if (_deals.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Ahora mismo no hay chollos detectados. El mercado se revisa cada pocas horas; '
+                    'sigue tus monedas y te avisamos.'),
+              ),
+            ),
+        ],
+        itemCount: _deals.length,
+        itemBuilder: (context, i) {
+          final d = _deals[i];
+          return Card(
             child: Column(children: [
               TypeTile(
                 api: api,
@@ -123,8 +127,10 @@ class _DealsTabState extends State<_DealsTab> with AutomaticKeepAliveClientMixin
                 ]),
               ),
             ]),
-          ),
-        if (_movers.isNotEmpty) ...[
+          );
+        },
+        footer: [
+          if (_movers.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text('Las que más se mueven', style: Theme.of(context).textTheme.titleMedium),
           for (final m in _movers)
@@ -139,8 +145,9 @@ class _DealsTabState extends State<_DealsTab> with AutomaticKeepAliveClientMixin
               onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: m['type']['id']))),
             ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }
@@ -249,9 +256,9 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
     try {
       final col = await state.api.get('/me/collection');
       _items = List<Map<String, dynamic>>.from(col['items']);
-      for (final it in _items) {
-        _advice[it['id']] =
-            Map<String, dynamic>.from(await state.api.get('/me/collection/${it['id']}/sell-advice'));
+      // one request for the whole collection instead of one per piece
+      for (final row in List<Map<String, dynamic>>.from(await state.api.get('/me/collection/sell-advice'))) {
+        _advice[row['item_id']] = Map<String, dynamic>.from(row['advice']);
       }
     } catch (e) {
       _error = e;
@@ -312,8 +319,9 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final state = context.watch<AppState>();
-    if (!state.loggedIn) {
+    final state = context.read<AppState>();
+    final loggedIn = context.select((AppState s) => s.loggedIn);
+    if (!loggedIn) {
       return const Center(
           child: Padding(
               padding: EdgeInsets.all(24),
@@ -325,12 +333,17 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
     final api = state.api;
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(padding: const EdgeInsets.all(12), children: [
-        if (_items.isEmpty)
-          const Padding(padding: EdgeInsets.all(16), child: Text('Tu colección está vacía.')),
-        for (final it in _items)
-          if (_advice[it['id']] case final a?)
-            Card(
+      child: SectionList(
+        header: [
+          if (_items.isEmpty)
+            const Padding(padding: EdgeInsets.all(16), child: Text('Tu colección está vacía.')),
+        ],
+        itemCount: _items.length,
+        itemBuilder: (context, i) {
+          final it = _items[i];
+          final a = _advice[it['id']];
+          if (a == null) return const SizedBox.shrink();
+          return Card(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 TypeTile(
                   api: api,
@@ -367,8 +380,9 @@ class _SellTabState extends State<_SellTab> with AutomaticKeepAliveClientMixin {
                   ]),
                 ),
               ]),
-            ),
-      ]),
+            );
+        },
+      ),
     );
   }
 }
@@ -417,8 +431,9 @@ class _WatchTabState extends State<_WatchTab> with AutomaticKeepAliveClientMixin
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final state = context.watch<AppState>();
-    if (!state.loggedIn) {
+    final state = context.read<AppState>();
+    final loggedIn = context.select((AppState s) => s.loggedIn);
+    if (!loggedIn) {
       return const Center(
           child: Padding(
               padding: EdgeInsets.all(24),
@@ -429,11 +444,15 @@ class _WatchTabState extends State<_WatchTab> with AutomaticKeepAliveClientMixin
     if (_error != null) return ErrorBox(_error!, onRetry: _load);
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(padding: const EdgeInsets.all(12), children: [
-        if (_rows.isEmpty)
-          const Padding(padding: EdgeInsets.all(16), child: Text('Todavía no sigues ninguna moneda.')),
-        for (final w in _rows)
-          Card(
+      child: SectionList(
+        header: [
+          if (_rows.isEmpty)
+            const Padding(padding: EdgeInsets.all(16), child: Text('Todavía no sigues ninguna moneda.')),
+        ],
+        itemCount: _rows.length,
+        itemBuilder: (context, i) {
+          final w = _rows[i];
+          return Card(
             child: TypeTile(
               api: state.api,
               type: Map<String, dynamic>.from(w['type']),
@@ -441,8 +460,9 @@ class _WatchTabState extends State<_WatchTab> with AutomaticKeepAliveClientMixin
               onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => CoinDetailScreen(typeId: w['type']['id']))),
             ),
-          ),
-      ]),
+          );
+        },
+      ),
     );
   }
 

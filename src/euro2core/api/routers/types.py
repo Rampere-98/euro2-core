@@ -15,7 +15,8 @@ from euro2core.api.queries import (
     translations_for,
     type_value_subquery,
 )
-from euro2core.api.schemas import IssueSummary, Page, TypeDetail, TypeSummary
+from euro2core.api.routers.issues import issue_detail
+from euro2core.api.schemas import IssueDetail, IssueSummary, Page, TypeDetail, TypeSummary
 from euro2core.domain.enums import CoinKind
 from euro2core.domain.models import CoinIssue, CoinType
 
@@ -118,3 +119,22 @@ async def get_type(
 def _fact_value(facts: dict, field: str):
     fact = facts.get(field)
     return fact.value if fact else None
+
+
+@router.get("/{type_id}/issues", response_model=list[IssueDetail])
+async def list_type_issues(
+    type_id: uuid.UUID, session: AsyncSession = SessionDep, lang: str = LangDep
+) -> list[IssueDetail]:
+    """Every variant of a design with its prices and rarity, in one request."""
+    coin_type = await session.get(CoinType, type_id)
+    if coin_type is None:
+        raise HTTPException(status_code=404, detail="type not found")
+    summary = (await summaries_for(session, [coin_type], lang))[0]
+    issues = (
+        await session.scalars(
+            select(CoinIssue)
+            .where(CoinIssue.type_id == type_id)
+            .order_by(CoinIssue.year, CoinIssue.mint_mark, CoinIssue.finish, CoinIssue.packaging)
+        )
+    ).all()
+    return [await issue_detail(session, issue, summary) for issue in issues]

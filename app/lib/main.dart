@@ -12,6 +12,7 @@ import 'screens/profile.dart';
 import 'screens/scan.dart';
 import 'screens/settings.dart';
 import 'state.dart';
+import 'widgets/lazy_indexed_stack.dart';
 
 /// When euro2-core serves the web build itself at /app, the API is on the same origin.
 String _defaultBaseUrl() {
@@ -32,7 +33,8 @@ class Euro2App extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'Euro2 - monedas de 2 EUR',
         debugShowCheckedModeBanner: false,
-        themeMode: context.watch<AppState>().themeMode,
+        // select, not watch: the whole app must not rebuild on every AppState change
+        themeMode: context.select((AppState s) => s.themeMode),
         theme: ThemeData(colorSchemeSeed: const Color(0xFF9C7A2E), useMaterial3: true),
         darkTheme: ThemeData(
             colorSchemeSeed: const Color(0xFFD4AF37), brightness: Brightness.dark, useMaterial3: true),
@@ -62,9 +64,13 @@ class _ShellState extends State<_Shell> {
     ProfileScreen(),
   ];
 
+  void _select(int i) {
+    if (i != _index) setState(() => _index = i);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final unread = context.watch<AppState>().unreadNotifications;
+    final unread = context.select((AppState s) => s.unreadNotifications);
     final wide = MediaQuery.sizeOf(context).width >= 800;
     final destinations = [
       const NavigationDestination(icon: Icon(Icons.center_focus_weak), label: 'Escanear'),
@@ -78,32 +84,39 @@ class _ShellState extends State<_Shell> {
         label: 'Perfil',
       ),
     ];
-    final body = KeyedSubtree(key: _bodyKey, child: IndexedStack(index: _index, children: _screens));
-    if (wide) {
-      return Scaffold(
-        floatingActionButton: const AskButton(),
-        body: Row(children: [
-          NavigationRail(
-            selectedIndex: _index,
-            onDestinationSelected: (i) => setState(() => _index = i),
-            labelType: NavigationRailLabelType.all,
-            destinations: [
-              for (final d in destinations) NavigationRailDestination(icon: d.icon, label: Text(d.label)),
-            ],
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(child: body),
-        ]),
-      );
-    }
-    return Scaffold(
-      body: body,
-      floatingActionButton: const AskButton(),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: destinations,
-      ),
+    final body = KeyedSubtree(key: _bodyKey, child: LazyIndexedStack(index: _index, children: _screens));
+    // Back (browser gesture, Android button) returns to Escanear before leaving the app.
+    return PopScope(
+      canPop: _index == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _select(0);
+      },
+      child: wide
+          ? Scaffold(
+              floatingActionButton: const AskButton(),
+              body: Row(children: [
+                NavigationRail(
+                  selectedIndex: _index,
+                  onDestinationSelected: _select,
+                  labelType: NavigationRailLabelType.all,
+                  destinations: [
+                    for (final d in destinations)
+                      NavigationRailDestination(icon: d.icon, label: Text(d.label)),
+                  ],
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(child: body),
+              ]),
+            )
+          : Scaffold(
+              body: body,
+              floatingActionButton: const AskButton(),
+              bottomNavigationBar: NavigationBar(
+                selectedIndex: _index,
+                onDestinationSelected: _select,
+                destinations: destinations,
+              ),
+            ),
     );
   }
 }

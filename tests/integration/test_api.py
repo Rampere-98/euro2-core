@@ -1,3 +1,4 @@
+import io
 import json
 import uuid
 from datetime import UTC, datetime
@@ -340,3 +341,60 @@ async def test_list_shows_a_value_hint_and_filters_and_sorts_by_price(client, ca
     assert cheap["total"] == 0
     pricey = (await client.get("/types", params={"min_value": "3", "sort": "value_desc"})).json()
     assert pricey["total"] >= 1 and pricey["items"][0]["value"] is not None
+
+
+async def test_image_endpoint_serves_cached_webp_thumbnails(
+    client, catalog, session, tmp_path, monkeypatch
+):
+    from PIL import Image
+
+    from euro2core.config import get_settings
+    from euro2core.domain.enums import ImageSide
+    from euro2core.domain.models import CoinImage
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    images_dir = tmp_path / "images"
+    images_dir.mkdir()
+    original = images_dir / "coin.jpg"
+    Image.new("RGB", (900, 900), (200, 170, 60)).save(original, format="JPEG")
+    photo = CoinImage(
+        type_id=catalog["type_id"],
+        side=ImageSide.OBVERSE,
+        source_url="https://example.org/coin.jpg",
+        local_path=str(original),
+        sha256="1" * 64,
+    )
+    session.add(photo)
+    await session.commit()
+
+    full = await client.get(f"/images/{photo.id}")
+    assert full.status_code == 200
+    assert Image.open(io.BytesIO(full.content)).size == (900, 900)
+
+    # sizes snap to a few buckets so the cache stays small; the file is reused next time
+    small = await client.get(f"/images/{photo.id}", params={"w": 70})
+    assert small.status_code == 200
+    assert small.headers["content-type"] == "image/webp"
+    assert "immutable" in small.headers["cache-control"]
+    assert Image.open(io.BytesIO(small.content)).size == (128, 128)
+    assert (images_dir / "coin_w128.webp").is_file()
+    again = await client.get(f"/images/{photo.id}", params={"w": 128})
+    assert again.content == small.content
+    # never upscale beyond the largest bucket
+    big = await client.get(f"/images/{photo.id}", params={"w": 4000})
+    assert Image.open(io.BytesIO(big.content)).size == (512, 512)
+
+
+async def test_type_issues_come_with_estimates_and_rarity_in_one_call(client, catalog):
+    # the coin page needs every variant's prices and rarity: one request, not one per variant
+    r = await client.get(f"/types/{catalog['type_id']}/issues")
+    assert r.status_code == 200
+    issues = r.json()
+    assert len(issues) == (await client.get(f"/types/{catalog['type_id']}")).json()["issue_count"]
+    a = next(i for i in issues if i["mint_mark"] == "A" and i["mintage"] == 6_000_000)
+    assert a["estimates"] and a["rarity"] is not None
+    assert {i["id"] for i in issues} == {
+        (await client.get(f"/issues/{i['id']}")).json()["id"] for i in issues
+    }
+    assert (await client.get(f"/types/{uuid.uuid4()}/issues")).status_code == 404

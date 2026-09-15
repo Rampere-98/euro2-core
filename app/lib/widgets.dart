@@ -93,11 +93,10 @@ class CoinThumb extends StatelessWidget {
                   child: Icon(Icons.hide_image_outlined, size: size * 0.45),
                 ),
               )
-            : Image.network(api.imageUrl(url), fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const Icon(Icons.euro)),
+            : _networkThumb(context, url),
       ),
     );
-    if (!borrowed) return thumb;
+    if (!borrowed) return RepaintBoundary(child: thumb);
     // The photo is of the plain design this edition derives from (coloured, hologram, error).
     return Tooltip(
       message: 'Foto del diseño base; esta edición es especial',
@@ -109,6 +108,21 @@ class CoinThumb extends StatelessWidget {
           child: Icon(Icons.auto_fix_high, size: size * 0.3, color: Theme.of(context).colorScheme.primary),
         ),
       ]),
+    );
+  }
+
+  /// Ask the server for a thumbnail sized for this widget and decode it at that size: a phone
+  /// list with fifty 1000 px JPEGs decoded on the main thread is what "low fps" looks like.
+  Widget _networkThumb(BuildContext context, String url) {
+    final px = (size * MediaQuery.devicePixelRatioOf(context)).ceil();
+    return Image.network(
+      '${api.imageUrl(url)}?w=$px',
+      fit: BoxFit.cover,
+      cacheWidth: px,
+      cacheHeight: px,
+      filterQuality: FilterQuality.medium,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => const Icon(Icons.euro),
     );
   }
 }
@@ -212,3 +226,34 @@ String _fmtInt(dynamic n) {
 }
 
 String fmtInt(dynamic n) => n == null ? '—' : _fmtInt(n);
+
+/// A list whose header/footer widgets are cheap and whose rows are built on demand, so a
+/// tab with fifty cards does not lay out fifty cards (and their thumbnails) at once.
+class SectionList extends StatelessWidget {
+  const SectionList({
+    super.key,
+    this.padding = const EdgeInsets.all(12),
+    this.header = const [],
+    this.footer = const [],
+    required this.itemCount,
+    required this.itemBuilder,
+  });
+
+  final EdgeInsetsGeometry padding;
+  final List<Widget> header;
+  final List<Widget> footer;
+  final int itemCount;
+  final Widget Function(BuildContext context, int index) itemBuilder;
+
+  @override
+  Widget build(BuildContext context) => ListView.builder(
+        padding: padding,
+        itemCount: header.length + itemCount + footer.length,
+        itemBuilder: (context, i) {
+          if (i < header.length) return header[i];
+          final j = i - header.length;
+          if (j < itemCount) return itemBuilder(context, j);
+          return footer[j - itemCount];
+        },
+      );
+}

@@ -287,6 +287,26 @@ async def market_movers(
     ]
 
 
+class ItemSellOut(BaseModel):
+    item_id: uuid.UUID
+    advice: SellOut
+
+
+@router.get("/me/collection/sell-advice", response_model=list[ItemSellOut])
+async def collection_sell_advice(
+    user: CurrentUser, session: AsyncSession = SessionDep, lang: str = LangDep
+) -> list[ItemSellOut]:
+    """Sell advice for every piece the user owns, in one request (the Vender tab)."""
+    items = (
+        await session.scalars(
+            select(CollectionItem)
+            .where(CollectionItem.user_id == user.id)
+            .order_by(CollectionItem.created_at)
+        )
+    ).all()
+    return [ItemSellOut(item_id=i.id, advice=await _sell_out(session, i, lang)) for i in items]
+
+
 @router.get("/me/collection/{item_id}/sell-advice", response_model=SellOut)
 async def item_sell_advice(
     item_id: uuid.UUID, user: CurrentUser, session: AsyncSession = SessionDep, lang: str = LangDep
@@ -294,6 +314,10 @@ async def item_sell_advice(
     item = await session.get(CollectionItem, item_id)
     if item is None or item.user_id != user.id:
         raise HTTPException(status_code=404, detail="item not found")
+    return await _sell_out(session, item, lang)
+
+
+async def _sell_out(session: AsyncSession, item: CollectionItem, lang: str) -> SellOut:
     issue = await session.get(CoinIssue, item.issue_id)
     coin_type = await session.get(CoinType, issue.type_id)
     market = await ma.market_for_type(session, coin_type)

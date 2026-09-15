@@ -130,8 +130,8 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    if (!state.loggedIn) {
+    final loggedIn = context.select((AppState s) => s.loggedIn);
+    if (!loggedIn) {
       return Scaffold(
         appBar: AppBar(title: const Text('Mi colección')),
         body: const Center(
@@ -154,7 +154,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
               ? ErrorBox(_error!, onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
-                  child: ListView(padding: const EdgeInsets.all(12), children: [
+                  child: SectionList(header: [
                     if (worth != null) _WorthCard(worth: worth),
                     if (_achievements.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -171,16 +171,17 @@ class _CollectionScreenState extends State<CollectionScreen> {
                         padding: EdgeInsets.all(16),
                         child: Text('Todavía no tienes monedas. Escanea una o búscala en el catálogo.'),
                       ),
-                    for (final item in _items)
-                      _ItemCard(
-                        item: item,
-                        onOpen: () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => CoinDetailScreen(typeId: item['type']['id']))),
-                        onVerify: () => _verify(item),
-                        onHistory: () => _showHistory(item),
-                        onRemove: () => _remove(item),
-                      ),
-                  ]),
+                  ], itemCount: _items.length, itemBuilder: (context, i) {
+                    final item = _items[i];
+                    return _ItemCard(
+                      item: item,
+                      onOpen: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => CoinDetailScreen(typeId: item['type']['id']))),
+                      onVerify: () => _verify(item),
+                      onHistory: () => _showHistory(item),
+                      onRemove: () => _remove(item),
+                    );
+                  }),
                 ),
     );
   }

@@ -60,6 +60,9 @@ uv run euro2 recompute rarity
 uv run euro2 serve          # API (docs at /docs) + scheduler on http://localhost:8000
 ```
 
+On Windows, `serve.cmd` in the repository root starts the same server from any folder
+(double-click it, or run it in a terminal); the app is then at <http://localhost:8000/app/>.
+
 To keep it running unattended on Windows (starts at logon, restarts if it stops):
 
 ```powershell
@@ -67,7 +70,9 @@ powershell -ExecutionPolicy Bypass -File scripts\install-autostart.ps1
 ```
 
 If Windows App Control blocks the generated `euro2.exe` launcher (error 4551), use
-`uv run python -m euro2core <command>` instead — same CLI.
+`uv run python -m euro2core <command>` instead — same CLI. Smart App Control (Windows 11)
+also blocks unsigned Python, numpy and Dart binaries and has no allow-list: turn it off in
+Windows Security → App & browser control, or run the server in Docker instead.
 
 Every job records a `sync_run` (stats, error, resumable cursor) and can be triggered from the
 API with `POST /sync/{job}`. `serve` runs them on their cadence: ECB daily, Numista weekly,
@@ -129,7 +134,7 @@ See [docs/superpowers/specs](docs/superpowers/specs/) for the approved design sp
 ```bash
 cd app
 flutter pub get
-flutter build web --release --base-href /app/   # then `euro2 serve` exposes it at /app
+flutter build web --release --wasm --base-href /app/   # then `euro2 serve` exposes it at /app
 flutter run -d chrome                           # or any device; API URL is editable in Perfil
 ```
 
