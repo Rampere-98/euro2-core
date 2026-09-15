@@ -218,7 +218,8 @@ Web app installable from the browser (PWA) — no stores, no keys for users:
    settings, backups, one-click updates from the GHCR image built by CI) is done in
    *Ajustes → Administración*.
 
-Step by step: [docs/deploy/oracle-free.md](docs/deploy/oracle-free.md).
+Step by step: [docs/deploy/oracle-free.md](docs/deploy/oracle-free.md) (free VM) or
+[docs/deploy/own-pc.md](docs/deploy/own-pc.md) (your own PC + Cloudflare Tunnel / Tailscale Funnel).
 
 ## Values without any API key
 
