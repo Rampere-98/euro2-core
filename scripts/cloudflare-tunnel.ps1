@@ -27,13 +27,13 @@ if ($Uninstall) {
 }
 
 if (-not (Test-Path (Join-Path $Dir "cert.pem"))) {
-    Write-Host "▶ Logging in to Cloudflare (a browser window opens: pick the zone '$Domain')"
+    Write-Host ">> Logging in to Cloudflare (a browser window opens: pick the zone '$Domain')"
     & $Cf tunnel login
 }
 
 $existing = & $Cf tunnel list --output json 2>$null | ConvertFrom-Json | Where-Object { $_.name -eq $TunnelName }
 if (-not $existing) {
-    Write-Host "▶ Creating tunnel '$TunnelName'"
+    Write-Host ">> Creating tunnel '$TunnelName'"
     & $Cf tunnel create $TunnelName | Out-Null
     $existing = & $Cf tunnel list --output json | ConvertFrom-Json | Where-Object { $_.name -eq $TunnelName }
 }
@@ -52,15 +52,15 @@ ingress:
 "@
 $config | Out-File -Encoding ascii (Join-Path $Dir "config.yml")
 
-Write-Host "▶ Pointing DNS ($Domain and www) at the tunnel"
+Write-Host ">> Pointing DNS ($Domain and www) at the tunnel"
 & $Cf tunnel route dns --overwrite-dns $TunnelName $Domain | Out-Null
 & $Cf tunnel route dns --overwrite-dns $TunnelName "www.$Domain" | Out-Null
 
-Write-Host "▶ Installing as a Windows service (starts with Windows)"
+Write-Host ">> Installing as a Windows service (starts with Windows)"
 & $Cf service uninstall 2>$null | Out-Null
 & $Cf --config (Join-Path $Dir "config.yml") service install
 Start-Service cloudflared -ErrorAction SilentlyContinue
 
 Write-Host ""
-Write-Host "✔ https://$Domain/  (web)   https://$Domain/app/  (app)"
-Write-Host "  Add 'https://$Domain' to Ajustes → Administración → Servidor → Orígenes permitidos."
+Write-Host "OK https://$Domain/  (web)   https://$Domain/app/  (app)"
+Write-Host "  Add 'https://$Domain' to Ajustes -> Administracion -> Servidor -> Origenes permitidos."
