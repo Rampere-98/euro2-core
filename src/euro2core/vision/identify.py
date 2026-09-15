@@ -12,10 +12,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from euro2core.domain.models import CoinImage, Identification, ImageEmbedding
 from euro2core.vision.embedder import ClipEmbedder
 from euro2core.vision.features import descriptors, inliers_from_descriptors
-from euro2core.vision.preprocess import inner_core, prepare_coin_image
+from euro2core.vision.preprocess import (
+    CoinCrop,
+    crop_around,
+    decode_image,
+    fallback_crops,
+    find_coin,
+    inner_core,
+    prepare_coin_image,
+)
 
-NEIGHBOURS = 96
-RERANK_TYPES = 12
+NEIGHBOURS = 128
+RERANK_TYPES = 16
 MIN_SIMILARITY = 0.55
 HIGH_INLIERS, MEDIUM_INLIERS, MIN_INLIERS = 30, 14, 8
 MARGIN_FOR_HIGH = 1.5
@@ -46,39 +54,26 @@ async def identify(
     top_k: int = 5,
     user_id: uuid.UUID | None = None,
     uploads_dir: Path | None = None,
+    guided: bool = False,
 ) -> IdentifyResult:
-    crop = prepare_coin_image(data)
-    vector = embedder.embed_images([inner_core(crop.image)])[0].tolist()
-    distance = ImageEmbedding.embedding.cosine_distance(vector)
-    rows = (
-        await session.execute(
-            select(CoinImage.type_id, CoinImage.id, CoinImage.local_path, distance)
-            .join(CoinImage, CoinImage.id == ImageEmbedding.image_id)
-            .where(CoinImage.type_id.is_not(None))
-            .order_by(distance)
-            .limit(NEIGHBOURS)
-        )
-    ).all()
-    # best embedding similarity per type, keeping the image that produced it
-    shortlist: dict[uuid.UUID, tuple[uuid.UUID, str, float]] = {}
-    for type_id, image_id, local_path, dist in rows:
-        similarity = 1.0 - float(dist)
-        if similarity < MIN_SIMILARITY or type_id in shortlist:
-            continue
-        shortlist[type_id] = (image_id, local_path, similarity)
-        if len(shortlist) >= RERANK_TYPES:
-            break
+    """Locate the coin, then match it. The detected rim is only a hint: the photo is also
+    tried at several centred crops and the crop whose best candidate verifies best is kept."""
+    image = decode_image(data)
+    if guided:
+        crops = [prepare_coin_image(data, guided=True)]
+    else:
+        circle = find_coin(image)
+        crops = ([crop_around(image, *circle, True)] if circle else []) + fallback_crops(image)
 
-    kq, dq = descriptors(crop.image)
-    verified: list[tuple[int, float, uuid.UUID, uuid.UUID]] = []
-    for type_id, (image_id, local_path, similarity) in shortlist.items():
-        try:
-            kc, dc = descriptors(Image.open(local_path).convert("RGB"))
-            inliers = inliers_from_descriptors(kq, dq, kc, dc)
-        except OSError:
-            inliers = 0
-        verified.append((inliers, similarity, type_id, image_id))
-    verified.sort(key=lambda v: (-v[0], -v[1]))
+    vectors = embedder.embed_images([inner_core(c.image) for c in crops])
+    catalog_descriptors: dict[str, tuple] = {}
+    best: tuple[list[tuple[int, float, uuid.UUID, uuid.UUID]], CoinCrop, list[float]] | None = None
+    for crop, vector in zip(crops, vectors, strict=True):
+        verified = await _verify(session, crop, vector.tolist(), catalog_descriptors)
+        if best is None or _quality(verified) > _quality(best[0]):
+            best = (verified, crop, vector.tolist())
+    assert best is not None
+    verified, crop, vector = best
     candidates = _rank(verified)[:top_k]
 
     record = Identification(
@@ -99,6 +94,56 @@ async def identify(
         crop.image.save(path, format="JPEG", quality=90)
         record.image_path = str(path)
     return IdentifyResult(record.id, crop.found_circle, candidates)
+
+
+def _quality(verified: list[tuple[int, float, uuid.UUID, uuid.UUID]]) -> tuple[int, float]:
+    """How convincing the best candidate of one crop is: geometric proof first, then similarity."""
+    if not verified:
+        return (0, 0.0)
+    inliers, similarity = max((v[0], v[1]) for v in verified)
+    return (inliers, similarity)
+
+
+async def _verify(
+    session: AsyncSession,
+    crop: CoinCrop,
+    vector: list[float],
+    catalog_descriptors: dict[str, tuple],
+) -> list[tuple[int, float, uuid.UUID, uuid.UUID]]:
+    """Retrieve the closest catalog views for one crop and verify each with SIFT + RANSAC."""
+    distance = ImageEmbedding.embedding.cosine_distance(vector)
+    rows = (
+        await session.execute(
+            select(CoinImage.type_id, CoinImage.id, CoinImage.local_path, distance)
+            .join(CoinImage, CoinImage.id == ImageEmbedding.image_id)
+            .where(CoinImage.type_id.is_not(None))
+            .order_by(distance)
+            .limit(NEIGHBOURS)
+        )
+    ).all()
+    # best embedding similarity per type, keeping the image that produced it
+    shortlist: dict[uuid.UUID, tuple[uuid.UUID, str, float]] = {}
+    for type_id, image_id, local_path, dist in rows:
+        similarity = 1.0 - float(dist)
+        if similarity < MIN_SIMILARITY or type_id in shortlist:
+            continue
+        shortlist[type_id] = (image_id, local_path, similarity)
+        if len(shortlist) >= RERANK_TYPES:
+            break
+
+    kq, dq = descriptors(crop.detail or crop.image)
+    verified: list[tuple[int, float, uuid.UUID, uuid.UUID]] = []
+    for type_id, (image_id, local_path, similarity) in shortlist.items():
+        if local_path not in catalog_descriptors:
+            try:
+                catalog_descriptors[local_path] = descriptors(Image.open(local_path).convert("RGB"))
+            except OSError:
+                catalog_descriptors[local_path] = ([], None)
+        kc, dc = catalog_descriptors[local_path]
+        inliers = inliers_from_descriptors(kq, dq, kc, dc)
+        verified.append((inliers, similarity, type_id, image_id))
+    verified.sort(key=lambda v: (-v[0], -v[1]))
+    return verified
 
 
 def _rank(verified: list[tuple[int, float, uuid.UUID, uuid.UUID]]) -> list[Candidate]:

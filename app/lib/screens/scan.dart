@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'coin_detail.dart';
+import 'crop.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -26,20 +27,33 @@ class _ScanScreenState extends State<ScanScreen> {
     if (file == null) return;
     final bytes = await file.readAsBytes();
     if (!mounted) return;
+    setState(() => _photo = bytes);
+    await _identify(bytes, guided: false);
+  }
+
+  /// The server locates and crops the coin on its own; `guided` means the user framed it by hand.
+  Future<void> _identify(Uint8List bytes, {required bool guided}) async {
     final api = context.read<AppState>().api;
     setState(() {
-      _photo = bytes;
       _result = null;
       _error = null;
       _busy = true;
     });
     try {
-      final r = await api.upload('/identify', bytes, 'coin.jpg');
+      final r = await api.upload(guided ? '/identify?guided=true' : '/identify', bytes, 'coin.jpg');
       setState(() => _result = Map<String, dynamic>.from(r));
     } catch (e) {
       setState(() => _error = e);
     }
     if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _adjustCrop() async {
+    final photo = _photo;
+    if (photo == null) return;
+    final cropped = await Navigator.of(context)
+        .push<Uint8List>(MaterialPageRoute(builder: (_) => CoinCropScreen(photo: photo)));
+    if (cropped != null && mounted) await _identify(cropped, guided: true);
   }
 
   Future<void> _confirm(Map<String, dynamic> candidate) async {
@@ -102,14 +116,11 @@ class _ScanScreenState extends State<ScanScreen> {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text('No reconozco esta moneda como una de 2 € catalogada. '
-                  'Prueba con más luz, enfocando el centro de la moneda, sin el anillo de estrellas cortado.'),
+                  'Prueba con más luz, enfocando el centro de la moneda, o ajusta el recorte a mano.'),
             ),
           ),
-        if (candidates.isNotEmpty) ...[
-          Text(_result!['found_circle'] == true ? 'Moneda localizada en la foto' : 'No se localizó el contorno; se usó la foto completa',
-              style: Theme.of(context).textTheme.labelMedium),
-          for (final c in candidates) _CandidateCard(api: api, candidate: c, onConfirm: () => _confirm(c)),
-        ],
+        if (_result != null) _CropCheck(api: api, result: _result!, onAdjust: _busy ? null : _adjustCrop),
+        for (final c in candidates) _CandidateCard(api: api, candidate: c, onConfirm: () => _confirm(c)),
       ]),
     );
   }
@@ -155,6 +166,51 @@ class _CandidateCard extends StatelessWidget {
           ]),
         ),
       ]),
+    );
+  }
+}
+
+/// Shows the square the server actually matched, so a bad automatic crop is obvious at a glance,
+/// with the manual framing as the escape hatch.
+class _CropCheck extends StatelessWidget {
+  const _CropCheck({required this.api, required this.result, required this.onAdjust});
+  final dynamic api;
+  final Map<String, dynamic> result;
+  final VoidCallback? onAdjust;
+
+  @override
+  Widget build(BuildContext context) {
+    final located = result['found_circle'] == true;
+    final cropUrl = result['crop_url'] as String?;
+    final text = Theme.of(context).textTheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          if (cropUrl != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(40),
+              child: Image.network(api.imageUrl(cropUrl), width: 80, height: 80, fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox(width: 80, height: 80)),
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(located ? 'Moneda localizada automáticamente' : 'Recorte automático (contorno no claro)',
+                  style: text.titleSmall),
+              Text('Esto es lo que se ha analizado. Si no es la moneda completa, ajústalo.',
+                  style: text.bodySmall),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                    onPressed: onAdjust,
+                    icon: const Icon(Icons.crop, size: 18),
+                    label: const Text('Ajustar recorte')),
+              ),
+            ]),
+          ),
+        ]),
+      ),
     );
   }
 }
