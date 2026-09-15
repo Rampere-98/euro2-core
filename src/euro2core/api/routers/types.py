@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from euro2core.api.deps import LangDep, SessionDep
@@ -18,7 +18,7 @@ from euro2core.api.queries import (
 from euro2core.api.routers.issues import issue_detail
 from euro2core.api.schemas import IssueDetail, IssueSummary, Page, TypeDetail, TypeSummary
 from euro2core.domain.enums import CoinKind
-from euro2core.domain.models import CoinIssue, CoinType
+from euro2core.domain.models import CoinImage, CoinIssue, CoinType
 
 router = APIRouter(prefix="/types", tags=["catalog"])
 
@@ -37,6 +37,7 @@ async def list_types(
     min_value: Annotated[Decimal | None, Query(ge=0)] = None,
     max_value: Annotated[Decimal | None, Query(ge=0)] = None,
     sort: str = Query(default="year_desc", pattern="^(year_desc|year_asc|value_desc|value_asc)$"),
+    with_image: bool = Query(default=False, description="only coins with a photo on file"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = SessionDep,
@@ -44,6 +45,13 @@ async def list_types(
 ) -> Page[TypeSummary]:
     values = type_value_subquery()
     stmt = select(CoinType).outerjoin(values, values.c.type_id == CoinType.id)
+    if with_image:
+        # a photo of its own, or the base design's (editions show the base coin's photo)
+        own = exists().where(CoinImage.type_id == CoinType.id, CoinImage.local_path.is_not(None))
+        base = exists().where(
+            CoinImage.type_id == CoinType.base_type_id, CoinImage.local_path.is_not(None)
+        )
+        stmt = stmt.where(or_(own, base))
     # a coin passes a price filter when its value range overlaps the requested one
     if min_value is not None:
         stmt = stmt.where(values.c.high >= min_value)

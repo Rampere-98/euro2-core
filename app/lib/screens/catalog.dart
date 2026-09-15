@@ -47,8 +47,22 @@ class _CatalogScreenState extends State<CatalogScreen> {
     _debounce = Timer(const Duration(milliseconds: 450), _load);
   }
 
+  bool? _withImage;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // preferences are restored after the first load: refetch when the photo filter changes
+    final withImage = context.select((AppState s) => s.catalogWithImage);
+    if (_withImage != null && withImage != _withImage) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    }
+    _withImage = withImage;
+  }
+
   Future<void> _load() async {
-    final api = context.read<AppState>().api;
+    final state = context.read<AppState>();
+    final api = state.api;
     setState(() {
       _loading = true;
       _error = null;
@@ -70,6 +84,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
           if (_year != null) 'year': '$_year',
           ...?kCategoryQuery[_category],
           ...?kPriceQuery[_price],
+          if (state.catalogWithImage) 'with_image': 'true',
           'sort': _sort,
         });
         _items = List<Map<String, dynamic>>.from(page['items']);
@@ -110,6 +125,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(children: [
+            FilterChip(
+              label: const Text('Solo con foto'),
+              avatar: const Icon(Icons.photo_camera_outlined, size: 16),
+              selected: context.select((AppState s) => s.catalogWithImage),
+              onSelected: (v) => context.read<AppState>().setFlag('catalogWithImage', v),
+            ),
+            const SizedBox(width: 12),
             DropdownButton<String?>(
               value: _country,
               hint: const Text('País'),

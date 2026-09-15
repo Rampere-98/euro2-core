@@ -25,6 +25,7 @@ class AppState extends ChangeNotifier {
   bool sharePurchases = true;
   bool notifyDeals = true;
   bool notifyMoves = true;
+  bool catalogWithImage = false; // hide coins without a photo on file
   Set<String> marketplaces = {'EBAY_ES', 'EBAY_DE', 'EBAY_FR', 'EBAY_IT'};
 
   bool get loggedIn => user != null;
@@ -40,6 +41,7 @@ class AppState extends ChangeNotifier {
     sharePurchases = prefs.getBool('sharePurchases') ?? true;
     notifyDeals = prefs.getBool('notifyDeals') ?? true;
     notifyMoves = prefs.getBool('notifyMoves') ?? true;
+    catalogWithImage = prefs.getBool('catalogWithImage') ?? false;
     marketplaces = (prefs.getStringList('marketplaces') ?? marketplaces.toList()).toSet();
     onboardingDone = prefs.getBool('onboarding_done_v1') ?? false;
     api.token = prefs.getString('token');
@@ -83,6 +85,8 @@ class AppState extends ChangeNotifier {
         notifyDeals = value;
       case 'notifyMoves':
         notifyMoves = value;
+      case 'catalogWithImage':
+        catalogWithImage = value;
     }
     (await SharedPreferences.getInstance()).setBool(key, value);
     notifyListeners();

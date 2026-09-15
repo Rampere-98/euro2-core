@@ -398,3 +398,52 @@ async def test_type_issues_come_with_estimates_and_rarity_in_one_call(client, ca
         (await client.get(f"/issues/{i['id']}")).json()["id"] for i in issues
     }
     assert (await client.get(f"/types/{uuid.uuid4()}/issues")).status_code == 404
+
+
+async def test_with_image_filter_hides_coins_without_a_photo_but_keeps_borrowed_ones(
+    client, catalog, session
+):
+    from euro2core.domain.enums import CoinKind, ImageSide, VerificationStatus
+    from euro2core.domain.models import CoinImage, CoinType
+
+    # the fixture coin gets a local photo; a special edition borrows it; a third coin has only
+    # a reference URL (no file) and must disappear from "Solo con foto"
+    session.add(
+        CoinImage(
+            type_id=catalog["type_id"],
+            side=ImageSide.OBVERSE,
+            source_url="https://ecb.example/de2006.jpg",
+            local_path="de2006.jpg",
+            sha256="1" * 64,
+        )
+    )
+    edition = CoinType(
+        kind=CoinKind.COMMEMORATIVE,
+        country_code="DE",
+        year=2006,
+        numista_type_id=999002,
+        base_type_id=catalog["type_id"],
+        verification_status=VerificationStatus.DOCUMENTED,
+    )
+    bare = CoinType(
+        kind=CoinKind.COMMEMORATIVE, country_code="DE", year=2007, numista_type_id=999003
+    )
+    session.add_all([edition, bare])
+    await session.flush()
+    session.add(
+        CoinImage(
+            type_id=bare.id,
+            side=ImageSide.OBVERSE,
+            source_url="https://numista.example/ref.jpg",
+            local_path=None,
+        )
+    )
+    await session.commit()
+
+    everything = (await client.get("/types", params={"country": "DE"})).json()
+    assert everything["total"] == 3
+    with_photo = (await client.get("/types", params={"country": "DE", "with_image": "true"})).json()
+    assert with_photo["total"] == 2
+    ids = {t["id"] for t in with_photo["items"]}
+    assert ids == {str(catalog["type_id"]), str(edition.id)}
+    assert all(t["image"] is not None for t in with_photo["items"])

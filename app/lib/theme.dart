@@ -88,6 +88,7 @@ class AppTheme {
     final dark = scheme.brightness == Brightness.dark;
     final base = ThemeData(colorScheme: scheme, useMaterial3: true, fontFamily: sans);
     final serif = TextStyle(fontFamily: display, color: scheme.onSurface, height: 1.15);
+    final sansStyle = TextStyle(fontFamily: sans, color: scheme.onSurface);
     final text = base.textTheme.copyWith(
       displayLarge: serif.copyWith(fontSize: 48, fontWeight: FontWeight.w600),
       displayMedium: serif.copyWith(fontSize: 38, fontWeight: FontWeight.w600),
@@ -96,11 +97,13 @@ class AppTheme {
       headlineMedium: serif.copyWith(fontSize: 24, fontWeight: FontWeight.w600),
       headlineSmall: serif.copyWith(fontSize: 21, fontWeight: FontWeight.w600),
       titleLarge: serif.copyWith(fontSize: 20, fontWeight: FontWeight.w600),
-      titleMedium: TextStyle(fontFamily: sans, fontSize: 16, fontWeight: FontWeight.w600, height: 1.3),
-      titleSmall: TextStyle(fontFamily: sans, fontSize: 14, fontWeight: FontWeight.w600, height: 1.3),
-      labelLarge: TextStyle(fontFamily: sans, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: .2),
-      bodyLarge: TextStyle(fontFamily: sans, fontSize: 16, height: 1.45),
-      bodyMedium: TextStyle(fontFamily: sans, fontSize: 14, height: 1.45),
+      titleMedium: sansStyle.copyWith(fontSize: 16, fontWeight: FontWeight.w600, height: 1.3),
+      titleSmall: sansStyle.copyWith(fontSize: 14, fontWeight: FontWeight.w600, height: 1.3),
+      labelLarge: sansStyle.copyWith(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: .2),
+      labelMedium: sansStyle.copyWith(fontSize: 12, fontWeight: FontWeight.w500),
+      labelSmall: sansStyle.copyWith(fontSize: 11, color: scheme.onSurfaceVariant),
+      bodyLarge: sansStyle.copyWith(fontSize: 16, height: 1.45),
+      bodyMedium: sansStyle.copyWith(fontSize: 14, height: 1.45),
       bodySmall: TextStyle(fontFamily: sans, fontSize: 12, height: 1.4, color: scheme.onSurfaceVariant),
     );
     final hairline = BorderSide(color: scheme.primary.withValues(alpha: dark ? 0.16 : 0.22));
