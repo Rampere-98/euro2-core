@@ -46,9 +46,9 @@ tunnel: $TunnelId
 credentials-file: $Creds
 ingress:
   - hostname: $Domain
-    service: http://localhost:$Port
+    service: http://127.0.0.1:$Port
   - hostname: www.$Domain
-    service: http://localhost:$Port
+    service: http://127.0.0.1:$Port
   - service: http_status:404
 "@
 $config | Out-File -Encoding ascii (Join-Path $Dir "config.yml")
