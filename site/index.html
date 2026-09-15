@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Euro2 · todas las monedas de 2 euros, su valor real y un asistente</title>
+  <meta name="description" content="Catálogo completo de monedas de 2 euros, valor real por ventas, identificación por foto y asistente para comprar y vender. Gratis, sin tiendas: se instala desde el navegador.">
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#9c7a2e">
+  <style>
+    :root { color-scheme: light dark; --gold: #9c7a2e; --gold2: #d4af37; --bg: #f7f4ee; --fg: #1c1914; --card: #fff; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #1c1914; --fg: #f3efe6; --card: #2a2620; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.5; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+    header { display: flex; align-items: center; gap: 14px; }
+    header img { width: 56px; height: 56px; }
+    h1 { font-size: 1.6rem; margin: 0; }
+    .hero { margin: 32px 0; text-align: center; }
+    .hero h2 { font-size: 2rem; margin: 0 0 8px; }
+    .hero p { font-size: 1.1rem; opacity: .85; max-width: 640px; margin: 0 auto 20px; }
+    .cta { display: inline-block; background: var(--gold); color: #fff; text-decoration: none; padding: 14px 26px; border-radius: 12px; font-weight: 600; font-size: 1.05rem; }
+    .cta.secondary { background: transparent; color: var(--gold); border: 2px solid var(--gold); margin-left: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin: 28px 0; }
+    .card { background: var(--card); border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+    .card p { margin: 0; font-size: .95rem; opacity: .85; }
+    .install { background: var(--card); border-radius: 14px; padding: 18px; margin-top: 28px; }
+    .install ol { padding-left: 20px; }
+    footer { margin-top: 40px; font-size: .85rem; opacity: .7; text-align: center; }
+    footer a { color: inherit; }
+    #android-btn { display: none; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="icon.png" alt="">
+    <div><h1>Euro2</h1><div style="opacity:.75">Monedas de 2 euros: catálogo, valor real y asistente</div></div>
+  </header>
+
+  <section class="hero">
+    <h2>Toda moneda de 2 € que existe, lo que vale de verdad y qué hacer con ella.</h2>
+    <p>Para el coleccionista que quiere entenderlo todo y para quien solo quiere saber si esa moneda que le dieron de vuelta vale algo y cómo venderla.</p>
+    <a class="cta" href="app/">Abrir la app</a>
+    <a class="cta secondary" href="#instalar">Instalar en el móvil</a>
+  </section>
+
+  <section class="grid">
+    <div class="card"><h3>📷 Identifica por foto</h3><p>Haz una foto a la cara nacional y la app la compara con todo el catálogo. Reconocimiento local, sin enviar tu foto a terceros.</p></div>
+    <div class="card"><h3>📚 Catálogo completo</h3><p>Conmemorativas desde 2004, circulación por país, emisiones conjuntas, ediciones especiales y errores documentados, con fotos oficiales del BCE.</p></div>
+    <div class="card"><h3>💶 Valor honesto</h3><p>Ventas reales cuando existen; si no, valor de catálogo o una estimación propia por tirada. Siempre sabrás de dónde sale cada cifra.</p></div>
+    <div class="card"><h3>📈 Mercado y gráfico</h3><p>Rango justo, mínimo y máximo vendido, tendencia, anuncios fiables (sin lotes ni réplicas) y evolución del precio en cada moneda.</p></div>
+    <div class="card"><h3>🤝 Comprar y vender con criterio</h3><p>Veredicto de compra, precio a pedir, neto tras comisiones, texto del anuncio listo para pegar y enlaces a las plazas.</p></div>
+    <div class="card"><h3>💬 Asistente</h3><p>Pregunta en tu idioma: «¿cuánto vale la de Grace Kelly?», «¿qué significa BU?», «¿hay chollos?». Responde con datos, no con humo.</p></div>
+  </section>
+
+  <section class="install" id="instalar">
+    <h3>Instalar en el móvil (gratis, sin tienda)</h3>
+    <p>Euro2 es una aplicación web instalable: ocupa poco, se abre a pantalla completa y usa la cámara.</p>
+    <button id="android-btn" class="cta">Instalar ahora</button>
+    <ol>
+      <li><strong>Android (Chrome):</strong> abre <a href="app/">la app</a>, pulsa el menú ⋮ y elige «Instalar aplicación» (o «Añadir a pantalla de inicio»).</li>
+      <li><strong>iPhone / iPad (Safari):</strong> abre <a href="app/">la app</a>, pulsa Compartir <span aria-hidden="true">⎋</span> y «Añadir a pantalla de inicio».</li>
+      <li><strong>Ordenador (Chrome/Edge):</strong> icono de instalar en la barra de direcciones.</li>
+    </ol>
+  </section>
+
+  <footer>
+    Código abierto (MIT) · <a href="https://github.com/Rampere-98/euro2-core">github.com/Rampere-98/euro2-core</a><br>
+    Fotos de monedas © Banco Central Europeo, reproducidas con atribución. Datos de catálogo: BCE y Numista.
+  </footer>
+</div>
+<script>
+  // Android/desktop Chrome: capture the native install prompt for the button above.
+  var deferred = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault(); deferred = e;
+    document.getElementById('android-btn').style.display = 'inline-block';
+  });
+  document.getElementById('android-btn').addEventListener('click', function () {
+    if (deferred) { deferred.prompt(); deferred = null; } else { location.href = 'app/'; }
+  });
+</script>
+</body>
+</html>

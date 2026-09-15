@@ -18,19 +18,38 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Catálogo, valor real y asistente para todas las monedas de 2 euros.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="euro2_app">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="apple-mobile-web-app-title" content="Euro2">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#9c7a2e">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>euro2_app</title>
+  <title>Euro2 · monedas de 2 €</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Keep the browser's install prompt so the app can offer an "Instalar" button.
+    window.euro2InstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.euro2InstallPrompt = e;
+      window.dispatchEvent(new Event('euro2-installable'));
+    });
+    window.euro2Install = function () {
+      var p = window.euro2InstallPrompt;
+      if (!p) return Promise.resolve('unavailable');
+      p.prompt();
+      return p.userChoice.then(function (c) { window.euro2InstallPrompt = null; return c.outcome; });
+    };
+    window.euro2IsStandalone = function () {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    };
+  </script>
 </head>
 <body>
   <!--

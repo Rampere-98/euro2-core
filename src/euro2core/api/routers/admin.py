@@ -315,46 +315,37 @@ async def get_stats(_: AdminUser, session: AsyncSession = SessionDep) -> dict[st
     }
 
 
-GHCR_TAGS = "https://ghcr.io/v2/rampere-98/euro2-core/tags/list"
+GITHUB_MAIN = "https://api.github.com/repos/Rampere-98/euro2-core/commits/main"
 
 
 @router.get("/version")
 async def get_version(_: AdminUser) -> dict[str, Any]:
-    """Running version, the image this container came from, and whether GHCR has a newer one."""
+    """Commit this image was built from versus the latest commit on GitHub main (the image
+    workflow publishes every push, so a newer commit means a newer image within minutes)."""
     running = os.environ.get("EURO2_IMAGE_SHA", "")
-    latest = None
-    if not running:  # not a container image: nothing to compare against
+    updater = bool(os.environ.get("EURO2_UPDATER_URL"))
+    if not running or running == "dev":  # not a published container image
         return {
             "version": VERSION,
-            "image_digest": None,
-            "latest_digest": None,
+            "image_commit": None,
+            "latest_commit": None,
             "update_available": False,
-            "updater": bool(os.environ.get("EURO2_UPDATER_URL")),
+            "updater": updater,
         }
+    latest = None
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            token = (
-                await client.get(
-                    "https://ghcr.io/token?scope=repository:rampere-98/euro2-core:pull"
-                )
-            ).json()["token"]
-            r = await client.get(
-                "https://ghcr.io/v2/rampere-98/euro2-core/manifests/latest",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/vnd.oci.image.index.v1+json, "
-                    "application/vnd.docker.distribution.manifest.list.v2+json",
-                },
-            )
-            latest = r.headers.get("docker-content-digest")
+            r = await client.get(GITHUB_MAIN, headers={"Accept": "application/vnd.github+json"})
+            if r.status_code == 200:
+                latest = r.json().get("sha")
     except Exception as exc:
-        log.info("GHCR unavailable: %s", exc)
+        log.info("GitHub unavailable: %s", exc)
     return {
         "version": VERSION,
-        "image_digest": running or None,
-        "latest_digest": latest,
-        "update_available": bool(latest and running and latest != running),
-        "updater": bool(os.environ.get("EURO2_UPDATER_URL")),
+        "image_commit": running[:12],
+        "latest_commit": latest[:12] if latest else None,
+        "update_available": bool(latest and not latest.startswith(running[:12])),
+        "updater": updater,
     }
 
 

@@ -1,12 +1,12 @@
 {
-    "name": "euro2_app",
-    "short_name": "euro2_app",
+    "name": "Euro2 · monedas de 2 €",
+    "short_name": "Euro2",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#1c1914",
+    "theme_color": "#9c7a2e",
+    "description": "Catálogo, valor real y asistente para todas las monedas de 2 euros.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {
@@ -31,5 +31,10 @@
             "type": "image/png",
             "purpose": "maskable"
         }
+    ],
+    "lang": "es",
+    "categories": [
+        "finance",
+        "education"
     ]
 }

@@ -1,0 +1,92 @@
+# Production stack for a free VM (Oracle Cloud Always Free, etc.):
+#   db (PostgreSQL + pgvector) · api (Euro2, scheduler included) · caddy (HTTPS, free certs)
+#   duckdns (keeps the free subdomain pointed at this VM) · updater (one-click updates from
+#   the app) · backup (nightly pg_dump, 14 days).
+# Everything else is configured from the app (Ajustes → Administración).
+
+name: euro2
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: euro2
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-euro2}
+      POSTGRES_DB: euro2
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U euro2"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  api:
+    image: ${EURO2_IMAGE:-ghcr.io/rampere-98/euro2-core:latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://euro2:${POSTGRES_PASSWORD:-euro2}@db:5432/euro2
+      DATA_DIR: /data
+      EURO2_UPDATER_URL: http://updater:9000
+    volumes:
+      - data:/data
+    expose: ["8000"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    restart: unless-stopped
+    environment:
+      SUBDOMAINS: ${DUCKDNS_SUBDOMAIN:-}
+      TOKEN: ${DUCKDNS_TOKEN:-}
+      TZ: Europe/Madrid
+    profiles: ["duckdns"]
+
+  updater:
+    build: ./deploy/updater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/stack:ro
+    environment:
+      COMPOSE_FILE: /stack/docker-compose.prod.yml
+    expose: ["9000"]
+
+  backup:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-euro2}
+    volumes:
+      - backups:/backups
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        while true; do
+          pg_dump -h db -U euro2 -Fc euro2 > /backups/euro2-$(date +%F).dump && \
+          find /backups -name 'euro2-*.dump' -mtime +14 -delete
+          sleep 86400
+        done
+
+volumes:
+  pgdata:
+  data:
+  caddy_data:
+  caddy_config:
+  backups:

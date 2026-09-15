@@ -207,6 +207,19 @@ median) and the estimate trail (`estimate_history`, appended whenever a recomput
 value). Watching a coin (`/me/watchlist`, free) turns deals and > 20 % moves into notifications
 after every price recompute. Price alerts are free for every user.
 
+## Publish it for free
+
+Web app installable from the browser (PWA) — no stores, no keys for users:
+
+1. Free server: Oracle Cloud Always Free ARM VM (or any Docker host) — one command:
+   `curl -fsSL https://raw.githubusercontent.com/Rampere-98/euro2-core/main/deploy/install.sh | bash`
+2. Free domain + HTTPS: DuckDNS subdomain, certificates by Caddy (Let's Encrypt).
+3. First account registered = administrator; everything else (API keys, jobs, users, server
+   settings, backups, one-click updates from the GHCR image built by CI) is done in
+   *Ajustes → Administración*.
+
+Step by step: [docs/deploy/oracle-free.md](docs/deploy/oracle-free.md).
+
 ## Values without any API key
 
 Every variant always has a value with an explicit basis, in this order:

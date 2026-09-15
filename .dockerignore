@@ -1,0 +1,16 @@
+.git
+.venv
+data
+app/build
+app/.dart_tool
+app/android
+app/ios
+tests
+docs
+*.md
+!README.md
+.github
+.env
+.env.*
+!.env.example
+__pycache__

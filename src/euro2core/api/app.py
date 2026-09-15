@@ -37,6 +37,8 @@ log = logging.getLogger(__name__)
 # Flutter web build (app/build/web) served at /app when present, so a single
 # `euro2 serve` gives both the API and the UI on one origin.
 WEB_BUILD_DIR = Path(__file__).resolve().parents[3] / "app" / "build" / "web"
+# Public landing page (site/) served at the root when present; API routes take precedence.
+SITE_DIR = Path(__file__).resolve().parents[3] / "site"
 
 
 def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) -> FastAPI:
@@ -94,4 +96,6 @@ def create_app(engine: AsyncEngine | None = None, *, scheduler: bool = False) ->
         app.include_router(router)
     if WEB_BUILD_DIR.is_dir():
         app.mount("/app", StaticFiles(directory=WEB_BUILD_DIR, html=True), name="app")
+    if SITE_DIR.is_dir():
+        app.mount("/", StaticFiles(directory=SITE_DIR, html=True), name="site")
     return app

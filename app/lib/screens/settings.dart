@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../install.dart';
 import '../state.dart';
 import '../widgets.dart';
 import '../widgets/market_block.dart';
@@ -63,6 +64,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(children: [
+        if (Install.isWeb && !Install.alreadyInstalled) ...[
+          _Section('Instalar la app'),
+          ListTile(
+            leading: const Icon(Icons.install_mobile),
+            title: const Text('Instalar Euro2 en este dispositivo'),
+            subtitle: Text(Install.canPromptNatively
+                ? 'Se instala desde el navegador, sin tienda, y se abre a pantalla completa.'
+                : 'iPhone/iPad: Safari → Compartir → "Añadir a pantalla de inicio". '
+                    'Android: menú del navegador → "Instalar aplicación".'),
+            trailing: Install.canPromptNatively
+                ? FilledButton(
+                    onPressed: () async {
+                      final r = await Install.prompt();
+                      if (context.mounted && r == 'accepted') setState(() {});
+                    },
+                    child: const Text('Instalar'))
+                : null,
+          ),
+        ],
         _Section('Idioma y aspecto'),
         ListTile(
           leading: const Icon(Icons.language),
