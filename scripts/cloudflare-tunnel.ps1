@@ -5,7 +5,8 @@
 #
 # Prerequisites: the domain is in your Cloudflare account (bought at Cloudflare Registrar or
 # with its nameservers pointed at Cloudflare) and cloudflared is installed
-# (winget install Cloudflare.cloudflared). The first run opens the browser once to log in.
+# (winget install Cloudflare.cloudflared). Run from an elevated PowerShell (administrator);
+# the first run opens the browser once to log in.
 
 param(
     [Parameter(Mandatory = $true)][string]$Domain,
@@ -57,9 +58,20 @@ Write-Host ">> Pointing DNS ($Domain and www) at the tunnel"
 & $Cf tunnel route dns --overwrite-dns $TunnelName "www.$Domain" | Out-Null
 
 Write-Host ">> Installing as a Windows service (starts with Windows)"
+# The service runs as SYSTEM and reads its files from the system profile (Cloudflare docs).
+$SysDir = "C:\Windows\System32\config\systemprofile\.cloudflared"
+New-Item -ItemType Directory -Force $SysDir | Out-Null
+Copy-Item (Join-Path $Dir "cert.pem") $SysDir -Force
+Copy-Item $Creds $SysDir -Force
+$config.Replace($Creds, (Join-Path $SysDir "$TunnelId.json")) + "logfile: $SysDir\cloudflared.log`nloglevel: info`n" |
+    Out-File -Encoding ascii (Join-Path $SysDir "config.yml")
+Stop-Service cloudflared -ErrorAction SilentlyContinue
 & $Cf service uninstall 2>$null | Out-Null
-& $Cf --config (Join-Path $Dir "config.yml") service install
-Start-Service cloudflared -ErrorAction SilentlyContinue
+& $Cf service install
+# cloudflared installs the service without arguments on Windows; point it at the config (docs)
+Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\Cloudflared -Name ImagePath `
+    -Value "`"$Cf`" --config=$SysDir\config.yml tunnel run"
+Start-Service cloudflared
 
 Write-Host ""
 Write-Host "OK https://$Domain/  (web)   https://$Domain/app/  (app)"
