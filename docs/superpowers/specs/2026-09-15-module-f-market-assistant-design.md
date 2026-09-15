@@ -69,3 +69,19 @@ Mercado becomes the assistant: **Chollos** (feed with links), **Comprar** (searc
 snapshot, band, min/max, listings, verdict), **Vender** (my pieces → suggested price, where,
 net after fees, publish in one tap), **Coleccionistas** (peer listings, offers), **Seguimiento**
 (watchlist). Coin detail shows the market block with min/max and links.
+
+## Revision (same day): informational product, no keys, own value model
+
+- The app is **informational**: it tells what a coin is, what it is worth and where to look.
+  The peer marketplace stays in the API but is not exposed in the UI; "Vender" gives a price
+  plan, a paste-ready listing text (es/en/de) and links to live and completed-sales searches.
+- **No API keys** for users or owner are required. Value basis order: `sold` (eBay when
+  configured + purchases collectors record, `platform/community_market.py`) → `catalog`
+  (Numista, optional) → `mintage_model` (`pricing/mintage_model.py`: buckets on the design's
+  mintage, finish factor, self-calibrating per bucket from real sales; circulation designs
+  common unless their strike is scarce; editions inherit the base design; orphan editions get
+  none) → `face_value`. Deals require a real basis.
+- **Local assistant** (`platform/chat_brain.py`, `platform/chat.py`, `POST /assistant/chat`):
+  rules first, local e5 embeddings as fallback, catalog entities, templated bilingual answers.
+- Catalog rows carry the reference variant's value range; `/types` filters and sorts by value.
+- `scripts/install-autostart.ps1` keeps the service (and its scheduler) running unattended.
