@@ -42,6 +42,12 @@ class Euro2Api {
         body: body == null ? null : jsonEncode(body),
       ));
 
+  Future<dynamic> put(String path, {Object? body}) async => _json(await http.put(
+        _uri(path),
+        headers: {..._headers, 'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ));
+
   Future<dynamic> patch(String path, {Object? body}) async => _json(await http.patch(
         _uri(path),
         headers: {..._headers, 'Content-Type': 'application/json'},

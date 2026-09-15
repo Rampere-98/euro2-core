@@ -97,6 +97,7 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
         'grade': grade,
         if (price.text.trim().isNotEmpty) 'acquired_price': price.text.trim().replaceAll(',', '.'),
         if (when != null) 'acquired_at': when!.toUtc().toIso8601String(),
+        'share_price': state.sharePurchases,
       });
       await state.refreshNotifications();
       if (mounted) {

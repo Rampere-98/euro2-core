@@ -32,6 +32,7 @@ from euro2core.domain.models import (
     User,
 )
 from euro2core.platform import logbuffer
+from euro2core.platform.auth import AuthError, user_id_from_token
 from euro2core.platform.credentials import credentials
 from euro2core.platform.settings_store import SPEC_BY_KEY, SettingsStore
 from euro2core.scheduler.jobs import is_running
@@ -373,8 +374,20 @@ async def request_update(_: AdminUser) -> dict[str, str]:
 
 
 @router.get("/backup")
-async def download_backup(_: AdminUser) -> Response:
-    """pg_dump of the whole database, streamed to the admin's device."""
+async def download_backup(
+    request: Request,
+    session: AsyncSession = SessionDep,
+    token: str | None = Query(default=None, description="bearer token, for browser downloads"),
+) -> Response:
+    """pg_dump of the whole database, streamed to the admin's device. A browser download
+    cannot set headers, so the token may come as a query parameter."""
+    raw = token or (request.headers.get("authorization") or "").split(" ")[-1]
+    try:
+        user = await session.get(User, user_id_from_token(raw, get_settings().secret_key))
+    except AuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    if user is None or user.role != Role.ADMIN:
+        raise HTTPException(status_code=403, detail="admins only")
     pg_dump = shutil.which("pg_dump")
     if pg_dump is None:
         raise HTTPException(status_code=501, detail="pg_dump is not installed on this server")

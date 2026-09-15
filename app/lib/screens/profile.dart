@@ -87,23 +87,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _editServer() async {
-    final state = context.read<AppState>();
-    final ctrl = TextEditingController(text: state.api.baseUrl);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Servidor euro2-core'),
-        content: TextField(controller: ctrl, decoration: const InputDecoration(hintText: 'http://localhost:8000')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
-        ],
-      ),
-    );
-    if (ok == true) await state.setBaseUrl(ctrl.text);
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -122,7 +105,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: const Icon(Icons.notifications),
               ),
             ),
-          IconButton(tooltip: 'Servidor', onPressed: _editServer, icon: const Icon(Icons.dns)),
         ],
       ),
       body: ListView(padding: const EdgeInsets.all(16), children: [
@@ -211,8 +193,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ListTile(
               leading: const Icon(Icons.logout), title: const Text('Cerrar sesión'), onTap: state.logout),
         ],
-        const SizedBox(height: 24),
-        Text('Servidor: ${state.api.baseUrl}', style: Theme.of(context).textTheme.labelSmall),
       ]),
     );
   }

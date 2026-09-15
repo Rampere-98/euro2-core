@@ -10,6 +10,7 @@ import 'screens/market.dart';
 import 'screens/news.dart';
 import 'screens/profile.dart';
 import 'screens/scan.dart';
+import 'screens/settings.dart';
 import 'state.dart';
 
 /// When euro2-core serves the web build itself at /app, the API is on the same origin.
@@ -31,6 +32,7 @@ class Euro2App extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'Euro2 - monedas de 2 EUR',
         debugShowCheckedModeBanner: false,
+        themeMode: context.watch<AppState>().themeMode,
         theme: ThemeData(colorSchemeSeed: const Color(0xFF9C7A2E), useMaterial3: true),
         darkTheme: ThemeData(
             colorSchemeSeed: const Color(0xFFD4AF37), brightness: Brightness.dark, useMaterial3: true),
@@ -56,6 +58,7 @@ class _ShellState extends State<_Shell> {
     CollectionScreen(),
     MarketScreen(),
     NewsScreen(),
+    SettingsScreen(),
     ProfileScreen(),
   ];
 
@@ -69,6 +72,7 @@ class _ShellState extends State<_Shell> {
       const NavigationDestination(icon: Icon(Icons.collections_bookmark), label: 'Colección'),
       const NavigationDestination(icon: Icon(Icons.storefront), label: 'Mercado'),
       const NavigationDestination(icon: Icon(Icons.newspaper), label: 'Noticias'),
+      const NavigationDestination(icon: Icon(Icons.settings), label: 'Ajustes'),
       NavigationDestination(
         icon: Badge(isLabelVisible: unread > 0, label: Text('$unread'), child: const Icon(Icons.person)),
         label: 'Perfil',
