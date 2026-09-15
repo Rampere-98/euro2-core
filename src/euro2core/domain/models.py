@@ -242,7 +242,7 @@ class CoinImage(Base):
     side: Mapped[ImageSide] = mapped_column(_enum(ImageSide, "image_side"), nullable=False)
     # NULL while the origin blocks automated downloads; the reference (URL, author, license) stays
     local_path: Mapped[str | None] = mapped_column(Text)
-    source_url: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
     license: Mapped[str | None] = mapped_column(String(120))
     author: Mapped[str | None] = mapped_column(String(200))
     sha256: Mapped[str | None] = mapped_column(String(64))
@@ -255,6 +255,8 @@ class CoinImage(Base):
         CheckConstraint(
             "(type_id IS NOT NULL) OR (issue_id IS NOT NULL)", name="ck_coin_image_has_target"
         ),
+        # one photo can illustrate several coins (joint issues); one row per coin and URL
+        UniqueConstraint("type_id", "issue_id", "source_url", name="uq_coin_image_target_url"),
         Index("ix_coin_image_type", "type_id"),
     )
 

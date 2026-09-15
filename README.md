@@ -72,6 +72,16 @@ A failed run keeps its cursor and is retried an hour later.
 - **Source data errors happen**: mintages written as "30 million", an issue dated year 0, a
   joint-issue page missing a country's photo. Each has a test and a defined behaviour.
 
+### Images
+
+- Commemoratives: the official ECB photo of each national side, downloaded with attribution.
+  One photo may illustrate several coins (joint issues); "coming soon" placeholders are ignored.
+- Circulation coins: the ECB per-country pages list every design a country has used
+  (`Belgium_2euro_2008.jpg`…); each circulation type gets the design current in its first year.
+- Numista photos are attributed references only (their CDN refuses scripted downloads), so a
+  coin that exists only on Numista — 2026 issues before the ECB page appears, coloured or
+  hologram editions — shows no photo until an official one exists.
+
 ## Tests
 
 ```bash

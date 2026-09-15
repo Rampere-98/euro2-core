@@ -120,7 +120,7 @@ def parse_commemorative_page(html: str, year: int) -> list[EcbEntry]:
         images = [
             urljoin(ECB_COMM_BASE, img.attributes["src"])
             for img in box.css("picture img")
-            if img.attributes.get("src")
+            if img.attributes.get("src") and "placeholder" not in img.attributes["src"].lower()
         ]
         country_name = _clean(heading.text())
         if country_name.casefold() == JOINT_ISSUE_HEADING:

@@ -1,5 +1,10 @@
 from datetime import UTC, datetime
 
+from euro2core.sources.ecb.national import (
+    NationalSideImage,
+    national_page_url,
+    parse_national_sides,
+)
 from euro2core.sources.ecb.parser import ECB_COMM_BASE, EcbEntry, parse_commemorative_page
 from euro2core.sources.http_cache import HttpCache
 from euro2core.sources.http_client import CachingFetcher
@@ -27,3 +32,7 @@ class EcbSource:
     async def fetch_year(self, year: int) -> list[EcbEntry]:
         html = await self.fetcher.get_text(self.page_url(year))
         return parse_commemorative_page(html, year)
+
+    async def fetch_national_sides(self, country_code: str) -> list[NationalSideImage]:
+        html = await self.fetcher.get_text(national_page_url(country_code))
+        return parse_national_sides(html)

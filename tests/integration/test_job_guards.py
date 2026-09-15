@@ -31,6 +31,9 @@ async def test_same_job_twice_at_once_serialises_and_never_duplicates(engine, tm
         return_value=httpx.Response(200, text=(FIXTURES / "comm_2004.en.html").read_text("utf-8"))
     )
     respx.get(url__regex=r".*\.jpg$").mock(return_value=httpx.Response(503))
+    respx.get(url__regex=r".*/coins/html/[a-z]{2}\.en\.html$").mock(
+        return_value=httpx.Response(404)
+    )
 
     a, b = await asyncio.gather(
         run_ecb_discover(engine, data_dir=tmp_path, years=[2004], user_agent="t"),

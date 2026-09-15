@@ -24,6 +24,9 @@ async def test_job_ingests_every_year_and_records_a_successful_run(engine, tmp_p
     respx.get(f"{ECB}comm_2004.en.html").mock(return_value=httpx.Response(200, text=_page(2004)))
     respx.get(f"{ECB}comm_2007.en.html").mock(return_value=httpx.Response(200, text=_page(2007)))
     respx.get(url__regex=r".*\.jpg$").mock(return_value=httpx.Response(503))
+    respx.get(url__regex=r".*/coins/html/[a-z]{2}\.en\.html$").mock(
+        return_value=httpx.Response(404)
+    )
 
     run = await run_ecb_discover(engine, data_dir=tmp_path, years=[2004, 2007], user_agent="t")
 
@@ -42,6 +45,9 @@ async def test_missing_future_year_page_is_skipped_not_fatal(engine, tmp_path):
     respx.get(f"{ECB}comm_2004.en.html").mock(return_value=httpx.Response(200, text=_page(2004)))
     respx.get(f"{ECB}comm_2027.en.html").mock(return_value=httpx.Response(404))
     respx.get(url__regex=r".*\.jpg$").mock(return_value=httpx.Response(503))
+    respx.get(url__regex=r".*/coins/html/[a-z]{2}\.en\.html$").mock(
+        return_value=httpx.Response(404)
+    )
 
     run = await run_ecb_discover(engine, data_dir=tmp_path, years=[2004, 2027], user_agent="t")
 
@@ -59,6 +65,9 @@ async def test_restructured_page_is_flagged_instead_of_silently_emptying_the_yea
         ]
     )
     respx.get(url__regex=r".*\.jpg$").mock(return_value=httpx.Response(503))
+    respx.get(url__regex=r".*/coins/html/[a-z]{2}\.en\.html$").mock(
+        return_value=httpx.Response(404)
+    )
     first = await run_ecb_discover(engine, data_dir=tmp_path, years=[2004], user_agent="t")
     assert first.stats["types_created"] == 6
 
@@ -76,6 +85,9 @@ async def test_unexpected_failure_marks_the_run_failed_and_keeps_earlier_years(e
     respx.get(f"{ECB}comm_2004.en.html").mock(return_value=httpx.Response(200, text=_page(2004)))
     respx.get(f"{ECB}comm_2007.en.html").mock(side_effect=httpx.ConnectError("boom"))
     respx.get(url__regex=r".*\.jpg$").mock(return_value=httpx.Response(503))
+    respx.get(url__regex=r".*/coins/html/[a-z]{2}\.en\.html$").mock(
+        return_value=httpx.Response(404)
+    )
 
     run = await run_ecb_discover(engine, data_dir=tmp_path, years=[2004, 2007], user_agent="t")
 

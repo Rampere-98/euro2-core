@@ -136,8 +136,13 @@ async def _store_images(
 ) -> None:
     folder = f"{entry.year}/{entry.country_code}/{slugify(entry.feature, max_words=6)}"
     for url in entry.image_urls:
+        # per coin, not per URL: the ECB reuses one photo for joint issues and the odd pair
         existing = (
-            await session.scalars(select(CoinImage).where(CoinImage.source_url == url))
+            await session.scalars(
+                select(CoinImage).where(
+                    CoinImage.source_url == url, CoinImage.type_id == coin_type.id
+                )
+            )
         ).first()
         if existing is not None:
             continue

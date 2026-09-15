@@ -12,10 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from euro2core.catalog.ingest_ebay import close_auction, ingest_listings
 from euro2core.catalog.ingest_ecb import ingest_ecb_entries
+from euro2core.catalog.ingest_national import ingest_national_sides
 from euro2core.catalog.ingest_numista import ingest_numista_type
 from euro2core.catalog.reconcile import link_by_elimination
 from euro2core.catalog.seed import ensure_reference_data
 from euro2core.domain.enums import ObservationKind, SyncStatus
+from euro2core.domain.eurozone import EURO_COUNTRIES
 from euro2core.domain.models import CoinIssue, CoinType, MarketObservation, PriceEstimate, SyncRun
 from euro2core.images.fetcher import ImageFetcher
 from euro2core.platform.alerts import check_alerts
@@ -152,6 +154,7 @@ async def run_ecb_discover(
         "claims_added": 0,
         "images_stored": 0,
         "images_failed": 0,
+        "national_images_stored": 0,
     }
 
     async def body(
@@ -186,6 +189,18 @@ async def run_ecb_discover(
             log.info(
                 "ECB %s: %s entries, %s new types", year, len(entries), year_stats.types_created
             )
+        # circulation designs live on the per-country pages, not on the yearly ones
+        for country in EURO_COUNTRIES:
+            try:
+                images = await source.fetch_national_sides(country.code)
+            except httpx.HTTPError as exc:
+                log.warning("ECB national page for %s unavailable: %s", country.code, exc)
+                continue
+            async with sessions() as session:
+                stats["national_images_stored"] += await ingest_national_sides(
+                    session, country.code, images, fetcher
+                )
+                await session.commit()
 
     return await _run_job(engine, "ecb_discover", body, stats)
 

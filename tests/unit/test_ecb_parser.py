@@ -176,3 +176,15 @@ def test_country_name_mapping(name, code):
 def test_unknown_country_name_raises():
     with pytest.raises(KeyError):
         country_code_for("Atlantis")
+
+
+def test_coming_soon_placeholders_are_not_coin_images():
+    html = """
+    <div class="box"><div class="coins">
+      <picture><img src="comm_2025/placeholder_coming_soon (1).jpg"></picture>
+    </div><div class="content-box"><h3>Vatican City</h3><div>
+      <p><strong>Feature:</strong> Jubilee 2025</p><p><strong>Description:</strong> x</p>
+      <p><strong>Issuing volume:</strong> 80 000 coins</p><p><strong>Issuing date:</strong> 2025</p>
+    </div></div></div>"""
+    (entry,) = parse_commemorative_page(html, year=2025)
+    assert entry.image_urls == []

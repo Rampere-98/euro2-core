@@ -176,6 +176,25 @@ async def test_joint_issue_creates_one_type_per_country_sharing_the_group(
 
 
 @respx.mock
+async def test_an_image_the_ecb_reuses_for_two_coins_is_attached_to_both(
+    session, entries_2004, fetcher
+):
+    respx.get(url__regex=r".*\.jpg$").mock(
+        return_value=httpx.Response(200, content=PNG, headers={"Content-Type": "image/jpeg"})
+    )
+    shared = "https://www.ecb.europa.eu/euro/coins/comm/html/comm_2004/shared.jpg"
+    first, second = entries_2004[0], entries_2004[1]
+    entries = [replace(first, image_urls=[shared]), replace(second, image_urls=[shared])]
+    await ensure_reference_data(session)
+    await ingest_ecb_entries(session, entries, fetcher)
+    await session.commit()
+    rows = (await session.scalars(select(CoinImage).where(CoinImage.source_url == shared))).all()
+    assert len(rows) == 2
+    assert len({r.type_id for r in rows}) == 2
+    assert all(r.local_path for r in rows)
+
+
+@respx.mock
 async def test_image_download_failure_does_not_abort_the_ingest(session, entries_2004, fetcher):
     respx.get(url__regex=r".*\.jpg$").mock(return_value=httpx.Response(503))
     await ensure_reference_data(session)
