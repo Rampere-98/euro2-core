@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../state.dart';
 import '../widgets.dart';
+import '../widgets/coin_visuals.dart';
 import '../widgets/market_block.dart';
 
 class CoinDetailScreen extends StatefulWidget {
@@ -126,33 +127,7 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
       appBar: AppBar(title: Text(t['title'] ?? '')),
       floatingActionButton: AskButton(typeId: t['id']),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        Center(
-          child: Wrap(spacing: 12, children: [
-            for (final img in images)
-              Column(mainAxisSize: MainAxisSize.min, children: [
-                CoinThumb(api: api, image: img, size: 180),
-                Text(img['side'] == 'obverse' ? 'anverso' : img['side'] == 'reverse' ? 'reverso' : 'canto',
-                    style: Theme.of(context).textTheme.labelSmall),
-                if (img['author'] != null)
-                  Text('© ${img['author']}', style: Theme.of(context).textTheme.labelSmall),
-              ]),
-            if (images.isEmpty)
-              Column(mainAxisSize: MainAxisSize.min, children: [
-                CoinThumb(api: api, image: null, size: 180),
-                const SizedBox(height: 4),
-                const Text('Sin foto oficial todavía: el BCE aún no la ha publicado.',
-                    style: TextStyle(fontSize: 12), textAlign: TextAlign.center),
-              ]),
-          ]),
-        ),
-        if (images.any((i) => i['borrowed'] == true))
-          const Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: Text('Se muestra el diseño base: esta es una edición especial (coloreada, holograma…) de esa moneda.',
-                style: TextStyle(fontSize: 12), textAlign: TextAlign.center),
-          ),
-        const SizedBox(height: 12),
-        Text('${countryName(t['country_code'])} · ${t['year']}', style: Theme.of(context).textTheme.titleMedium),
+        _CoinHeader(api: api, type: t, images: images),
         Wrap(children: [
           if (t['kind'] == 'commemorative') const Chip2('conmemorativa'),
           if (t['kind'] == 'circulation') const Chip2('circulación'),
@@ -261,5 +236,60 @@ class _IssueCard extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+
+/// The coin as the hero: photo in a gold ring, country flag, year and mintage at a glance.
+class _CoinHeader extends StatelessWidget {
+  const _CoinHeader({required this.api, required this.type, required this.images});
+  final dynamic api;
+  final Map<String, dynamic> type;
+  final List<Map<String, dynamic>> images;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final main = images.isEmpty ? null : images.first;
+    final borrowed = images.any((i) => i['borrowed'] == true);
+    return Column(children: [
+      const SizedBox(height: 8),
+      GoldRing(size: 212, width: 4, child: CoinThumb(api: api, image: main, size: 196)),
+      if (images.length > 1)
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Wrap(spacing: 10, children: [
+            for (final img in images.skip(1))
+              Column(mainAxisSize: MainAxisSize.min, children: [
+                CoinThumb(api: api, image: img, size: 64),
+                Text(img['side'] == 'obverse' ? 'anverso' : img['side'] == 'reverse' ? 'reverso' : 'canto',
+                    style: text.labelSmall),
+              ]),
+          ]),
+        ),
+      const SizedBox(height: 14),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        CountryFlag(type['country_code'] as String?, height: 16),
+        const SizedBox(width: 8),
+        Text('${countryName(type['country_code'])} \u00b7 ${type['year']}', style: text.titleMedium),
+      ]),
+      if (type['mintage_total'] != null)
+        Text('tirada ${fmtInt(type['mintage_total'])}', style: text.bodySmall),
+      if (main == null)
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text('Sin foto oficial todav\u00eda: el BCE a\u00fan no la ha publicado.',
+              style: TextStyle(fontSize: 12), textAlign: TextAlign.center),
+        ),
+      if (main?['author'] != null)
+        Text('\u00a9 ${main!['author']}', style: text.labelSmall),
+      if (borrowed)
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text('Se muestra el dise\u00f1o base: esta es una edici\u00f3n especial (coloreada, holograma\u2026) de esa moneda.',
+              style: TextStyle(fontSize: 12), textAlign: TextAlign.center),
+        ),
+      const SizedBox(height: 8),
+    ]);
   }
 }

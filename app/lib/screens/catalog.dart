@@ -103,7 +103,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 icon: Icon(_semantic ? Icons.auto_awesome : Icons.auto_awesome_outlined),
                 onPressed: () => setState(() => _semantic = !_semantic),
               ),
-              border: const OutlineInputBorder(),
             ),
           ),
         ),

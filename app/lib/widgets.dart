@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'widgets/coin_visuals.dart';
 
 const kCountryNames = {
   'AD': 'Andorra', 'AT': 'Austria', 'BE': 'Bélgica', 'BG': 'Bulgaria', 'CY': 'Chipre',
@@ -179,16 +180,40 @@ class TypeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = type['value'] as Map<String, dynamic>?;
-    return ListTile(
-      leading: CoinThumb(api: api, image: type['image']),
-      title: Text(type['title'] ?? '${countryName(type['country_code'])} ${type['year']}',
-          maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text('${countryName(type['country_code'])} · ${type['year']}'
-          '${type['kind'] == 'circulation' ? ' · circulación' : ''}'
-          '${type['kind'] == 'error' ? ' · error de acuñación' : ''}'
-          '${type['mintage_total'] != null ? ' · tirada ${_fmtInt(type['mintage_total'])}' : ''}'),
-      trailing: trailing ?? (value == null ? null : ValueBadge(value: value)),
+    final text = Theme.of(context).textTheme;
+    final kind = switch (type['kind']) {
+      'circulation' => 'circulaci\u00f3n',
+      'error' => 'error de acu\u00f1aci\u00f3n',
+      _ => type['base_type_id'] != null ? 'edici\u00f3n especial' : 'conmemorativa',
+    };
+    final mintage = type['mintage_total'] != null ? ' \u00b7 tirada ${_fmtInt(type['mintage_total'])}' : '';
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(children: [
+          GoldRing(size: 64, width: 1.5, child: CoinThumb(api: api, image: type['image'], size: 56)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(type['title'] ?? '${countryName(type['country_code'])} ${type['year']}',
+                  maxLines: 2, overflow: TextOverflow.ellipsis, style: text.titleSmall),
+              const SizedBox(height: 3),
+              Row(children: [
+                CountryFlag(type['country_code'] as String?, height: 12),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('${countryName(type['country_code'])} \u00b7 ${type['year']} \u00b7 $kind$mintage',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodySmall),
+                ),
+              ]),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          trailing ?? (value == null ? const SizedBox.shrink() : ValueBadge(value: value)),
+        ]),
+      ),
     );
   }
 }
@@ -201,16 +226,17 @@ class ValueBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final basis = value['basis'] as String;
+    final scheme = Theme.of(context).colorScheme;
     final color = switch (basis) {
-      'sold' => Colors.green,
-      'catalog' => Colors.blue,
-      'mintage_model' => Theme.of(context).colorScheme.outline,
-      _ => Colors.orange,
+      'sold' => scheme.tertiary,
+      'catalog' => scheme.primary,
+      'mintage_model' => scheme.onSurfaceVariant,
+      _ => scheme.secondary,
     };
     return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
       Text(euroRange(value['low'], value['high']),
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: color, fontWeight: FontWeight.bold)),
-      Text(kBasisShort[basis] ?? basis, style: TextStyle(fontSize: 10, color: color)),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: color, fontFeatures: const [FontFeature.tabularFigures()])),
+      Text(kBasisShort[basis] ?? basis, style: TextStyle(fontSize: 10, color: color, letterSpacing: .3)),
     ]);
   }
 }

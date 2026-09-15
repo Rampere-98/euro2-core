@@ -8,6 +8,7 @@ import '../device.dart';
 import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
+import '../widgets/coin_visuals.dart';
 import 'coin_detail.dart';
 import 'crop.dart';
 
@@ -79,21 +80,36 @@ class _ScanScreenState extends State<ScanScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Identificar moneda')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        if (_photo != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.memory(_photo!, height: 220, fit: BoxFit.contain),
-          )
-        else
-          Container(
-            height: 220,
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Theme.of(context).colorScheme.surfaceContainerHighest),
-            child: const Center(
-                child: Text('Haz una foto de la cara nacional de la moneda\n(la que tiene el dibujo del país)',
-                    textAlign: TextAlign.center)),
-          ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(children: [
+            Center(
+              child: GoldRing(
+                size: 236,
+                width: 4,
+                spin: _busy,
+                child: _photo != null
+                    ? Image.memory(_photo!, fit: BoxFit.cover, gaplessPlayback: true, cacheHeight: 480)
+                    : Container(
+                        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                        child: Icon(Icons.euro, size: 96,
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: .35)),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(_photo == null ? 'Identifica cualquier moneda de 2 \u20ac' : (_busy ? 'Analizando\u2026' : 'Foto analizada'),
+                style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            Text(
+              _photo == null
+                  ? 'Haz una foto a la cara nacional (la del dibujo del pa\u00eds). La moneda se recorta sola.'
+                  : 'Comprueba el recorte y confirma la moneda para mejorar el reconocimiento.',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ]),
+        ),
         const SizedBox(height: 12),
         Row(children: [
           Expanded(

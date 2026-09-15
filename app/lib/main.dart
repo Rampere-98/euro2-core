@@ -13,6 +13,7 @@ import 'screens/profile.dart';
 import 'screens/scan.dart';
 import 'screens/settings.dart';
 import 'state.dart';
+import 'theme.dart';
 import 'widgets/lazy_indexed_stack.dart';
 
 /// When euro2-core serves the web build itself at /app, the API is on the same origin.
@@ -36,12 +37,8 @@ class Euro2App extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     // select, not watch: the whole app must not rebuild on every AppState change
     themeMode: context.select((AppState s) => s.themeMode),
-    theme: ThemeData(colorSchemeSeed: const Color(0xFF9C7A2E), useMaterial3: true),
-    darkTheme: ThemeData(
-      colorSchemeSeed: const Color(0xFFD4AF37),
-      brightness: Brightness.dark,
-      useMaterial3: true,
-    ),
+    theme: AppTheme.light(),
+    darkTheme: AppTheme.dark(),
     home: const _Shell(),
   );
 }
@@ -197,6 +194,10 @@ class _ShellState extends State<_Shell> {
                 bottomNavigationBar: NavigationBar(
                   selectedIndex: _index,
                   onDestinationSelected: _select,
+                  // seven tabs: on narrow phones only the active label fits
+                  labelBehavior: MediaQuery.sizeOf(context).width < 430
+                      ? NavigationDestinationLabelBehavior.onlyShowSelected
+                      : NavigationDestinationLabelBehavior.alwaysShow,
                   destinations: destinations,
                 ),
               ),

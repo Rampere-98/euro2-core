@@ -227,19 +227,19 @@ class _VerdictCard extends StatelessWidget {
     final (icon, color, title, body) = switch (verdict) {
       'buy_now' => (
           Icons.local_fire_department,
-          Colors.green,
+          Theme.of(context).colorScheme.tertiary,
           (buy['saving_pct'] as num) >= 15 ? 'Chollo: cómprala ahora' : 'Buen momento para comprar',
           'Hay una oferta fiable a ${euro(cheapest?['price'])}, un ${(buy['saving_pct'] as num).toStringAsFixed(0)} % por debajo del rango de ventas reales.'
         ),
       'fair' => (
           Icons.thumb_up,
-          Colors.blue,
+          Theme.of(context).colorScheme.primary,
           'Precio justo',
           'La oferta más barata (${euro(cheapest?['price'])}) está dentro del rango de ventas reales.'
         ),
       'overpriced' => (
           Icons.trending_up,
-          Colors.orange,
+          Theme.of(context).colorScheme.secondary,
           'Cara ahora mismo',
           'La oferta más barata (${euro(cheapest?['price'])}) supera el rango de ventas reales. Espera o negocia.'
         ),
