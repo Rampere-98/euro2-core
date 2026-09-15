@@ -26,10 +26,10 @@ class Device {
   static bool get isPwa => _pwa ??= _standalone();
 
   static String get label => switch (kind) {
-        DeviceKind.ios => 'iPhone / iPad',
-        DeviceKind.android => 'Android',
-        DeviceKind.desktop => 'Ordenador',
-      };
+    DeviceKind.ios => 'iPhone / iPad',
+    DeviceKind.android => 'Android',
+    DeviceKind.desktop => 'Ordenador',
+  };
 
   static DeviceKind _detect() {
     if (kIsWeb) {

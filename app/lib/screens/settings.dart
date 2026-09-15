@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../device.dart';
 import '../install.dart';
+import '../main.dart';
 import '../navigation/swipe_back.dart';
 import '../state.dart';
 import '../widgets.dart';
@@ -164,6 +165,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: const Text('Movimientos de precio (> 20 %)'),
           value: state.notifyMoves,
           onChanged: (v) => state.setFlag('notifyMoves', v),
+        ),
+        _Section('Ayuda'),
+        ListTile(
+          leading: const Icon(Icons.school_outlined),
+          title: const Text('Ver el tutorial'),
+          subtitle: const Text('Un paseo guiado por Escanear, Catálogo, Mercado y el asistente'),
+          onTap: () => ShellScope.of(context)?.showTutorial(),
         ),
         _Section('Datos'),
         ListTile(

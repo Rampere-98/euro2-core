@@ -10,8 +10,13 @@ class AppState extends ChangeNotifier {
   final Euro2Api api;
   Map<String, dynamic>? user;
   int unreadNotifications = 0;
+
   /// Type ids the user follows, loaded once per session so coin pages need not fetch the list.
   Set<String>? watchlistIds;
+
+  /// Preferences have been read from disk (the shell waits for this before the tour).
+  bool restored = false;
+  bool onboardingDone = false;
   final String defaultBaseUrl;
 
   // Preferences (Ajustes), persisted locally on this device.
@@ -36,6 +41,7 @@ class AppState extends ChangeNotifier {
     notifyDeals = prefs.getBool('notifyDeals') ?? true;
     notifyMoves = prefs.getBool('notifyMoves') ?? true;
     marketplaces = (prefs.getStringList('marketplaces') ?? marketplaces.toList()).toSet();
+    onboardingDone = prefs.getBool('onboarding_done_v1') ?? false;
     api.token = prefs.getString('token');
     if (api.token != null) {
       try {
@@ -46,6 +52,7 @@ class AppState extends ChangeNotifier {
         await prefs.remove('token');
       }
     }
+    restored = true;
     notifyListeners();
   }
 
@@ -87,9 +94,17 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> markOnboardingDone() async {
+    onboardingDone = true;
+    (await SharedPreferences.getInstance()).setBool('onboarding_done_v1', true);
+    notifyListeners();
+  }
+
   Future<void> clearLocalData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    // the tour is not "data": nobody wants it again after clearing a cache
+    if (onboardingDone) await prefs.setBool('onboarding_done_v1', true);
     api.token = null;
     user = null;
     api.baseUrl = defaultBaseUrl;
@@ -105,12 +120,15 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> register(String email, String password, String name, String? country) async {
-    final body = await api.post('/auth/register', body: {
-      'email': email,
-      'password': password,
-      'display_name': name,
-      if (country != null && country.isNotEmpty) 'country_code': country,
-    });
+    final body = await api.post(
+      '/auth/register',
+      body: {
+        'email': email,
+        'password': password,
+        'display_name': name,
+        if (country != null && country.isNotEmpty) 'country_code': country,
+      },
+    );
     await _applyToken(Map<String, dynamic>.from(body));
   }
 

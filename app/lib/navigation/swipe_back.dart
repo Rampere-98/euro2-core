@@ -15,8 +15,12 @@ class SwipeBackRoute<T> extends MaterialPageRoute<T> {
   Duration get transitionDuration => const Duration(milliseconds: 320);
 
   @override
-  Widget buildTransitions(BuildContext context, Animation<double> animation,
-      Animation<double> secondaryAnimation, Widget child) {
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
     return CupertinoPageTransition(
       primaryRouteAnimation: animation,
       secondaryRouteAnimation: secondaryAnimation,
@@ -68,20 +72,19 @@ class _SwipeBackDetectorState extends State<_SwipeBackDetector> {
 
   @override
   Widget build(BuildContext context) => RawGestureDetector(
-        behavior: HitTestBehavior.translucent,
-        gestures: {
-          HorizontalDragGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<HorizontalDragGestureRecognizer>(
-            () => HorizontalDragGestureRecognizer(debugOwner: this),
-            (r) => r
-              ..onStart = _onStart
-              ..onUpdate = _onUpdate
-              ..onEnd = _onEnd
-              ..onCancel = _onCancel,
-          ),
-        },
-        child: widget.child,
-      );
+    behavior: HitTestBehavior.translucent,
+    gestures: {
+      HorizontalDragGestureRecognizer: GestureRecognizerFactoryWithHandlers<HorizontalDragGestureRecognizer>(
+        () => HorizontalDragGestureRecognizer(debugOwner: this),
+        (r) => r
+          ..onStart = _onStart
+          ..onUpdate = _onUpdate
+          ..onEnd = _onEnd
+          ..onCancel = _onCancel,
+      ),
+    },
+    child: widget.child,
+  );
 }
 
 /// Drives the route's animation from a drag: 1.0 = in place, 0.0 = fully dismissed.
@@ -103,11 +106,19 @@ class _BackGesture {
       _navigator.pop();
       if (_c.isAnimating) {
         final ms = (300 * _c.value).round().clamp(80, 300);
-        _c.animateBack(0.0, duration: Duration(milliseconds: ms), curve: Curves.easeOut);
+        _c.animateBack(
+          0.0,
+          duration: Duration(milliseconds: ms),
+          curve: Curves.easeOut,
+        );
       }
     } else {
       final ms = (300 * (1 - _c.value)).round().clamp(80, 300);
-      _c.animateTo(1.0, duration: Duration(milliseconds: ms), curve: Curves.easeOut);
+      _c.animateTo(
+        1.0,
+        duration: Duration(milliseconds: ms),
+        curve: Curves.easeOut,
+      );
     }
     if (_c.isAnimating) {
       late final AnimationStatusListener done;
