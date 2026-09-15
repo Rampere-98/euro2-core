@@ -195,7 +195,13 @@ def serve(
     import uvicorn
 
     from euro2core.api.app import create_app
+    from euro2core.startup import wait_for_database
 
+    # After a reboot the database may still be starting (Docker Desktop on a PC): wait for
+    # it instead of dying, so the autostart task does not need to retry.
+    if not wait_for_database(str(get_settings().database_url)):
+        typer.echo("database did not come up in time", err=True)
+        raise typer.Exit(code=3)
     uvicorn.run(create_app(scheduler=scheduler), host=host, port=port, log_level="info")
 
 
