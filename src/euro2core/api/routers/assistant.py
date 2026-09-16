@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,15 +13,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from euro2core.api.auth_deps import CurrentUser
 from euro2core.api.deps import LangDep, SessionDep
 from euro2core.api.queries import summaries_for
+from euro2core.api.ratelimit import WEB_SEARCH, limiter
 from euro2core.api.routers.marketplace import ListingOut
 from euro2core.api.routers.marketplace import _render as render_peers
 from euro2core.api.schemas import TypeSummary
 from euro2core.domain.enums import Grade
 from euro2core.domain.models import CoinIssue, CoinType, CollectionItem, WatchItem
 from euro2core.platform import market_assistant as ma
+from euro2core.platform.credentials import credentials
 from euro2core.pricing.market_intel import (
     Listing,
     RangeStats,
+    explain_sale,
     listing_copy,
     search_links,
     sell_advice,
@@ -58,6 +61,18 @@ class OfferOut(BaseModel):
     reliability: float
     reasons: list[str]
     discount_pct: float
+
+
+class SaleOut(BaseModel):
+    listing_id: str
+    price: Decimal
+    sold_at: datetime
+    where: str  # marketplace label or the shop's host
+    marketplace: str
+    url: str
+    title: str
+    grade: str
+    why: list[str]
 
 
 class IgnoredOut(BaseModel):
@@ -104,6 +119,8 @@ class TypeMarketOut(BaseModel):
     best_marketplace: str | None
     buy: BuyOut
     offers: list[OfferOut]
+    sales: list[SaleOut]  # how many, at what price, when, where and why (newest first)
+    sales_by_site: dict[str, int]
     ignored: list[IgnoredOut]
     history: list[MonthOut]
     estimate_history: list[EstimatePointOut]
@@ -151,6 +168,22 @@ class WatchOut(BaseModel):
     buy: BuyOut
     band: BandOut
     trend_pct: float | None
+
+
+def _where(x: Listing) -> str:
+    if x.marketplace == "WEB":
+        from euro2core.platform.web_market import host_of
+
+        return host_of(x.url)
+    return x.marketplace
+
+
+def _by_site(sales) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for o in sales:
+        key = _where(o.listing)
+        out[key] = out.get(key, 0) + 1
+    return dict(sorted(out.items(), key=lambda kv: -kv[1]))
 
 
 def _range(r: RangeStats | None) -> RangeOut | None:
@@ -217,6 +250,21 @@ async def _market_out(
             )
             for o in s.offers
         ],
+        sales=[
+            SaleOut(
+                listing_id=o.listing.listing_id,
+                price=o.listing.price,
+                sold_at=o.listing.ends_at or o.listing.observed_at,
+                where=_where(o.listing),
+                marketplace=o.listing.marketplace,
+                url=o.listing.url,
+                title=o.listing.title,
+                grade=o.listing.grade.value,
+                why=explain_sale(o.listing, o.reliability.reasons, s.band, lang),
+            )
+            for o in s.sales[:40]
+        ],
+        sales_by_site=_by_site(s.sales),
         ignored=[
             IgnoredOut(
                 listing_id=x.listing_id,
@@ -252,6 +300,46 @@ async def type_market(
     if coin_type is None:
         raise HTTPException(status_code=404, detail="type not found")
     return await _market_out(session, await ma.market_for_type(session, coin_type), lang, coin_type)
+
+
+class WebSearchOut(BaseModel):
+    queries: int
+    pages: int
+    found: int
+    stored: int
+    refused: list[str]
+    market: TypeMarketOut
+
+
+@router.post("/types/{type_id}/market/search", response_model=WebSearchOut)
+@limiter.limit(WEB_SEARCH)
+async def search_market_now(
+    request: Request,
+    type_id: uuid.UUID,
+    session: AsyncSession = SessionDep,
+    lang: str = LangDep,
+) -> WebSearchOut:
+    """Ask the open web for this coin right now (shops, classifieds), then return the refreshed
+    market view. Key-free, polite (robots.txt, paused hosts) and rate limited per visitor."""
+    from euro2core.platform.web_market import search_coin
+    from euro2core.sources.web.fetcher import PoliteFetcher
+
+    coin_type = await session.get(CoinType, type_id)
+    if coin_type is None:
+        raise HTTPException(status_code=404, detail="type not found")
+    creds = await credentials(session)
+    title = await ma._title(session, type_id, "en") or await ma._title(session, type_id, "es")
+    result = await search_coin(session, PoliteFetcher(creds.user_agent), coin_type, title or None)
+    await session.commit()
+    market = await ma.market_for_type(session, coin_type)
+    return WebSearchOut(
+        queries=result.queries,
+        pages=result.pages,
+        found=len(result.products),
+        stored=result.ingest.stored if result.ingest else 0,
+        refused=result.refused,
+        market=await _market_out(session, market, lang, coin_type),
+    )
 
 
 @router.get("/market/deals", response_model=list[DealOut])

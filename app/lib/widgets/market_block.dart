@@ -15,6 +15,7 @@ const kMarketplaceLabel = {
   'EBAY_IT': 'eBay Italia',
   'EBAY_NL': 'eBay Países Bajos',
   'EBAY_AT': 'eBay Austria',
+  'WEB': 'tiendas web',
 };
 
 const kReasonLabel = {
@@ -30,6 +31,13 @@ const kReasonLabel = {
 };
 
 String marketplaceName(String code) => kMarketplaceLabel[code] ?? code;
+
+/// A marketplace code, or the shop's own host for open-web finds.
+String _siteName(String where) => kMarketplaceLabel[where] ?? where;
+
+String _offerWhere(Map<String, dynamic> offer) => offer['marketplace'] == 'WEB'
+    ? (Uri.tryParse(offer['url'] ?? '')?.host ?? 'web').replaceFirst('www.', '')
+    : marketplaceName(offer['marketplace']);
 
 Future<void> openUrl(BuildContext context, String url) async {
   if (url.startsWith('euro2://')) {
@@ -58,6 +66,30 @@ class _MarketBlockState extends State<MarketBlock> {
   Object? _error;
   bool _watching = false;
   bool _showIgnored = false;
+  bool _showAllSales = false;
+  bool _searching = false;
+  String? _searchNote;
+
+  /// Ask the server to read shops and classifieds for this coin right now (no keys involved).
+  Future<void> _searchWeb() async {
+    final state = context.read<AppState>();
+    setState(() {
+      _searching = true;
+      _searchNote = null;
+    });
+    try {
+      final r = Map<String, dynamic>.from(await state.api.post('/types/${widget.typeId}/market/search'));
+      final refused = List.from(r['refused'] ?? []);
+      setState(() {
+        _m = Map<String, dynamic>.from(r['market']);
+        _searchNote = '${r['pages']} p\u00e1ginas le\u00eddas, ${r['found']} con precio, ${r['stored']} nuevas'
+            '${refused.isNotEmpty ? ' \u00b7 ${refused.length} sitios no permiten lectura autom\u00e1tica' : ''}';
+      });
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
+    if (mounted) setState(() => _searching = false);
+  }
 
   @override
   void initState() {
@@ -106,6 +138,8 @@ class _MarketBlockState extends State<MarketBlock> {
     final buy = Map<String, dynamic>.from(m['buy']);
     final offers = List<Map<String, dynamic>>.from(m['offers']);
     final ignored = List<Map<String, dynamic>>.from(m['ignored']);
+    final sales = List<Map<String, dynamic>>.from(m['sales'] ?? []);
+    final bySite = Map<String, dynamic>.from(m['sales_by_site'] ?? {});
     final external = List<Map<String, dynamic>>.from(m['external_links'] ?? []);
     final history = List<Map<String, dynamic>>.from(m['history']);
     final estimates = List<Map<String, dynamic>>.from(m['estimate_history']);
@@ -156,6 +190,41 @@ class _MarketBlockState extends State<MarketBlock> {
             style: TextStyle(fontSize: 12, color: scheme.outline),
           ),
         ),
+      if (!widget.compact) ...[
+        Row(children: [
+          Expanded(
+            child: Text(
+              sales.isEmpty
+                  ? 'Ventas registradas: ninguna todav\u00eda'
+                  : 'Ventas registradas (${sales.length})',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _searching ? null : _searchWeb,
+            icon: _searching
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.travel_explore, size: 18),
+            label: Text(_searching ? 'Buscando\u2026' : 'Buscar ahora en la web'),
+          ),
+        ]),
+        if (_searchNote != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(_searchNote!, style: TextStyle(fontSize: 12, color: scheme.outline)),
+          ),
+        if (bySite.isNotEmpty)
+          Wrap(spacing: 6, runSpacing: 4, children: [
+            for (final e in bySite.entries) Chip2('${_siteName(e.key)} \u00b7 ${e.value}'),
+          ]),
+        for (final sale in sales.take(_showAllSales ? sales.length : 6)) _SaleTile(sale: sale, onOpen: (u) => openUrl(context, u)),
+        if (sales.length > 6)
+          TextButton(
+            onPressed: () => setState(() => _showAllSales = !_showAllSales),
+            child: Text(_showAllSales ? 'Ver menos' : 'Ver las ${sales.length} ventas'),
+          ),
+        const SizedBox(height: 8),
+      ],
       if (external.isNotEmpty) ...[
         Text('Ver en las plazas', style: Theme.of(context).textTheme.titleSmall),
         Wrap(spacing: 6, children: [
@@ -283,7 +352,7 @@ class _OfferTile extends StatelessWidget {
       dense: true,
       leading: Icon(offer['kind'] == 'auction_open' ? Icons.gavel : Icons.sell,
           color: discount > 0 ? Colors.green : null),
-      title: Text('${euro(offer['price'])} · ${marketplaceName(offer['marketplace'])}'
+      title: Text('${euro(offer['price'])} · ${_offerWhere(offer)}'
           '${discount > 0 ? ' · −${discount.toStringAsFixed(0)} %' : ''}'),
       subtitle: Text('${offer['title']}${reasons.isNotEmpty ? '\n$reasons' : ''}',
           maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -423,5 +492,27 @@ class _PriceChartState extends State<PriceChart> {
           LineChartBarData(spots: est, color: Colors.blue, barWidth: 2, dotData: const FlDotData(show: false), isStepLineChart: true),
       ],
     ));
+  }
+}
+
+/// One realized sale: how much, when, where and why it closed there.
+class _SaleTile extends StatelessWidget {
+  const _SaleTile({required this.sale, required this.onOpen});
+  final Map<String, dynamic> sale;
+  final void Function(String) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final when = '${sale['sold_at']}'.substring(0, 10);
+    final why = (sale['why'] as List).join(' \u00b7 ');
+    return ListTile(
+      dense: true,
+      leading: const Icon(Icons.check_circle_outline),
+      title: Text('${euro(sale['price'])} \u00b7 ${_siteName(sale['where'])} \u00b7 $when'),
+      subtitle: Text('${sale['title']}${why.isNotEmpty ? '\n$why' : ''}',
+          maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: const Icon(Icons.open_in_new, size: 18),
+      onTap: () => onOpen(sale['url']),
+    );
   }
 }

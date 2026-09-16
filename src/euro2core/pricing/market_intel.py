@@ -89,6 +89,7 @@ class Snapshot:
     offers: list[ScoredListing] = field(default_factory=list)  # reliable, cheapest first
     ignored: list[Listing] = field(default_factory=list)  # with the reason in `ignored_reasons`
     ignored_reasons: dict[str, list[str]] = field(default_factory=dict)
+    sales: list[ScoredListing] = field(default_factory=list)  # reliable realized, newest first
 
 
 def _stats(prices: list[Decimal], window_days: int) -> RangeStats:
@@ -108,12 +109,18 @@ def _stats(prices: list[Decimal], window_days: int) -> RangeStats:
     )
 
 
+ASK_FLOOR = Decimal("0.70")  # sales usually close 10-30 % under the cheapest reliable ask
+MIN_ASKS_FOR_BAND = 2
+
+
 def fair_band(
     realized: RangeStats | None,
     catalog: Decimal | None,
     model: tuple[Decimal, Decimal] | None = None,
+    asking: RangeStats | None = None,
 ) -> tuple[Decimal, Decimal, str]:
-    """Realized sales first; else the catalog value ±20 %; else the mintage model; else face."""
+    """Realized sales first; else the catalog value ±20 %; else what shops ask (an upper
+    bound, so the band hangs just under the cheapest ask); else the mintage model; else face."""
     if realized is not None:
         return realized.p25, realized.p75, "sold"
     if catalog is not None and catalog > 0:
@@ -122,6 +129,8 @@ def fair_band(
             _money(catalog * (1 + CATALOG_SPREAD)),
             "catalog",
         )
+    if asking is not None and asking.n >= MIN_ASKS_FOR_BAND:
+        return _money(asking.min * ASK_FLOOR), _money(asking.min), "asking_only"
     if model is not None:
         return _money(model[0]), _money(model[1]), "mintage_model"
     return FACE_VALUE, FACE_VALUE, "face_value"
@@ -195,7 +204,7 @@ def snapshot(
         (s for s in scored if s.listing.kind in ASKING_KINDS), key=lambda s: s.listing.price
     )
     asking = _stats([s.listing.price for s in asks], 0) if asks else None
-    low, high, basis = fair_band(realized, catalog, model)
+    low, high, basis = fair_band(realized, catalog, model, asking)
     return Snapshot(
         realized=realized,
         asking=asking,
@@ -207,7 +216,36 @@ def snapshot(
         offers=asks,
         ignored=ignored,
         ignored_reasons=reasons,
+        sales=sorted(sold, key=lambda s: s.listing.ends_at or s.listing.observed_at, reverse=True),
     )
+
+
+def explain_sale(x: Listing, reasons: list[str], band: Band, lang: str = "es") -> list[str]:
+    """Why a sale closed where it did, in words a seller understands: grade, certification,
+    channel and how it sits against the fair band. Templated, no external service."""
+    es = lang != "en"
+    out: list[str] = []
+    grade = _GRADE_WORD["es" if es else "en"].get(x.grade, "")
+    if grade:
+        out.append(grade)
+    if "certified" in reasons:
+        out.append("certificada" if es else "certified")
+    if x.kind == ObservationKind.AUCTION_CLOSED:
+        out.append("subasta" if es else "auction")
+    elif x.marketplace == "WEB":
+        out.append("tienda web (agotada)" if es else "web shop (sold out)")
+    if band.high > 0:
+        if x.price > band.high:
+            pct = round(float((x.price - band.high) / band.high) * 100)
+            out.append(f"{pct} % sobre el rango justo" if es else f"{pct}% above the fair band")
+        elif x.price < band.low:
+            pct = round(float((band.low - x.price) / band.low) * 100)
+            out.append(f"{pct} % bajo el rango justo" if es else f"{pct}% below the fair band")
+        else:
+            out.append("dentro del rango justo" if es else "within the fair band")
+    if "year_mismatch" in reasons:
+        out.append("año dudoso en el título" if es else "doubtful year in the title")
+    return out
 
 
 def deal_discount(price: Decimal, band: Band) -> float:

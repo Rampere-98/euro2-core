@@ -256,3 +256,18 @@ async def test_sell_advice_for_the_whole_collection_in_one_call(client, catalog,
     single = (await client.get(f"/me/collection/{ids[0]}/sell-advice", headers=auth)).json()
     assert batch[0]["advice"]["start"] == single["start"]
     assert (await client.get("/me/collection/sell-advice")).status_code == 401
+
+
+async def test_market_view_lists_each_sale_with_when_where_and_why(client, catalog, session):
+    await _seed_market(session, catalog["de_a"], prices=SALES)
+    body = (await client.get(f"/types/{catalog['de_type']}/market")).json()
+    sales = body["sales"]
+    assert len(sales) == len(SALES)
+    # newest first, each one says where and why
+    dates = [s["sold_at"] for s in sales]
+    assert dates == sorted(dates, reverse=True)
+    assert sales[0]["where"] in ("EBAY_DE", "EBAY_ES")
+    assert sales[0]["url"].startswith("http")
+    assert any("rango" in w or "band" in w for w in sales[0]["why"])
+    assert sum(body["sales_by_site"].values()) == len(SALES)
+    assert set(body["sales_by_site"]) == {"EBAY_DE", "EBAY_ES"}

@@ -271,10 +271,25 @@ class _JobsTabState extends State<_JobsTab> with AutomaticKeepAliveClientMixin {
     _load();
   }
 
+  List<Map<String, dynamic>> _sites = [];
+
+  Future<void> _toggleSite(String host, bool enabled) async {
+    final api = context.read<AppState>().api;
+    try {
+      await api.patch('/admin/sites/$host', body: {'enabled': enabled});
+      await _load();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
+
   Future<void> _load() async {
     try {
-      final rows = await context.read<AppState>().api.get('/admin/jobs');
+      final api = context.read<AppState>().api;
+      final rows = await api.get('/admin/jobs');
+      final sites = await api.get('/admin/sites');
       setState(() {
+        _sites = List<Map<String, dynamic>>.from(sites);
         _jobs = List<Map<String, dynamic>>.from(rows);
         _error = null;
       });
@@ -365,6 +380,33 @@ class _JobsTabState extends State<_JobsTab> with AutomaticKeepAliveClientMixin {
                 ),
             ]),
           ),
+        if (_sites.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 16, 8, 4),
+            child: Text('Sitios web le\u00eddos (${_sites.length})', style: Theme.of(context).textTheme.titleMedium),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Text(
+              'Tiendas y anuncios que el lector abierto ha encontrado. Se respeta robots.txt; un sitio que rechaza la lectura queda en pausa un d\u00eda.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+          for (final site in _sites)
+            SwitchListTile(
+              dense: true,
+              title: Text(site['host']),
+              subtitle: Text(
+                '${site['listings_found']} anuncios de ${site['pages_read']} p\u00e1ginas'
+                '${site['paused_until'] != null ? ' \u00b7 en pausa' : ''}'
+                '${site['last_error'] != null ? ' \u00b7 ${site['last_error']}' : ''}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              value: site['enabled'] == true,
+              onChanged: (v) => _toggleSite(site['host'], v),
+            ),
+        ],
       ]),
     );
   }

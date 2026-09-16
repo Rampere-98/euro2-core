@@ -693,3 +693,20 @@ class Rating(Base):
         UniqueConstraint("offer_id", "rater_id", name="uq_rating_once_per_side"),
         CheckConstraint("stars BETWEEN 1 AND 5", name="ck_rating_stars"),
     )
+
+
+class MarketSite(Base):
+    """A web shop or classifieds site the open-web reader has met: on/off from the admin panel,
+    paused for a day when it refuses us, and a tally so the panel shows what it yields."""
+
+    __tablename__ = "market_site"
+
+    host: Mapped[str] = mapped_column(String(120), primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(120))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    paused_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_ok_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    pages_read: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    listings_found: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    discovered_at: Mapped[datetime] = _now()

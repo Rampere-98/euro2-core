@@ -30,6 +30,7 @@ IDENTIFY = "30/minute"
 CHAT = "60/minute"
 REGISTER = "10/hour"
 LOGIN = "30/minute"
+WEB_SEARCH = "6/minute"  # each one reads up to 16 pages from other people's sites
 
 
 def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:

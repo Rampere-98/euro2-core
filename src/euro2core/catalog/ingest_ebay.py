@@ -22,9 +22,9 @@ class IngestListingsResult:
 
 
 async def ingest_listings(
-    session: AsyncSession, listings: Iterable[Listing]
+    session: AsyncSession, listings: Iterable[Listing], *, source_code: str = "ebay"
 ) -> IngestListingsResult:
-    source = await get_source(session, "ebay")
+    source = await get_source(session, source_code)
     result = IngestListingsResult()
     for listing in listings:
         match = await match_listing(session, listing.title)

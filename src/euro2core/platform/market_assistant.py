@@ -219,8 +219,8 @@ async def deals(
     for coin_type in await _types_with_active_asks(session, now=now):
         market = await market_for_type(session, coin_type, now=now)
         snap = market.snapshot
-        if snap.band.basis in ("face_value", "mintage_model"):
-            continue  # a deal needs a real reference, not a model
+        if snap.band.basis in ("face_value", "mintage_model", "asking_only"):
+            continue  # a deal needs a real reference: not a model, not other asks
         weight = await _rarity_weight(session, coin_type.id)
         for offer in snap.offers:
             discount = deal_discount(offer.listing.price, snap.band)

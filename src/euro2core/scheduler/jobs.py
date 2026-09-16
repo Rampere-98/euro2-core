@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import traceback
+import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -19,7 +20,14 @@ from euro2core.catalog.reconcile import link_by_elimination
 from euro2core.catalog.seed import ensure_reference_data
 from euro2core.domain.enums import ObservationKind, SyncStatus
 from euro2core.domain.eurozone import EURO_COUNTRIES
-from euro2core.domain.models import CoinIssue, CoinType, MarketObservation, PriceEstimate, SyncRun
+from euro2core.domain.models import (
+    CoinIssue,
+    CoinType,
+    MarketObservation,
+    PriceEstimate,
+    SyncRun,
+    WatchItem,
+)
 from euro2core.images.fetcher import ImageFetcher
 from euro2core.platform.alerts import check_alerts
 from euro2core.platform.market_assistant import notify_watchers
@@ -614,3 +622,79 @@ async def run_reconcile(engine: AsyncEngine) -> SyncRun:
             await session.commit()
 
     return await _run_job(engine, "reconcile", body, stats)
+
+
+WEB_COINS_PER_RUN = 60  # x up to 16 pages each, 1.5 s apart per host: a gentle daily crawl
+
+
+async def web_targets(session: AsyncSession, limit: int = WEB_COINS_PER_RUN) -> list[uuid.UUID]:
+    """Designs worth asking the web about today: followed ones first, then the ones with recent
+    market activity, then the rest by year (newest first) so every coin gets its turn."""
+    watched = list(await session.scalars(select(WatchItem.type_id).distinct()))
+    recent = list(
+        await session.scalars(
+            select(CoinIssue.type_id)
+            .join(MarketObservation, MarketObservation.issue_id == CoinIssue.id)
+            .where(MarketObservation.observed_at >= datetime.now(UTC) - timedelta(days=30))
+            .distinct()
+        )
+    )
+    rest = list(
+        await session.scalars(
+            select(CoinType.id)
+            .where(CoinType.base_type_id.is_(None))
+            .order_by(CoinType.year.desc(), CoinType.country_code)
+        )
+    )
+    out: list[uuid.UUID] = []
+    for type_id in [*watched, *recent, *rest]:
+        if type_id not in out:
+            out.append(type_id)
+        if len(out) >= limit:
+            break
+    return out
+
+
+async def run_web_listings(engine: AsyncEngine, *, user_agent: str) -> SyncRun:
+    """Read what shops and classified sites publish for the coins that matter today."""
+    from euro2core.platform.market_assistant import _title
+    from euro2core.platform.web_market import search_coin
+    from euro2core.sources.web.fetcher import PoliteFetcher
+
+    stats: dict[str, Any] = {
+        "coins": 0,
+        "queries": 0,
+        "pages": 0,
+        "listings_stored": 0,
+        "refused": 0,
+    }
+    fetcher = PoliteFetcher(user_agent)
+
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
+        async with sessions() as session:
+            targets = await web_targets(session)
+        done = set(cursor.get("done", []))
+        for type_id in targets:
+            if str(type_id) in done:
+                continue
+            async with sessions() as session:
+                coin_type = await session.get(CoinType, type_id)
+                if coin_type is None:
+                    continue
+                title = await _title(session, type_id, "en") or await _title(session, type_id, "es")
+                result = await search_coin(session, fetcher, coin_type, title or None)
+                await session.commit()
+            stats["coins"] += 1
+            stats["queries"] += result.queries
+            stats["pages"] += result.pages
+            stats["listings_stored"] += result.ingest.stored if result.ingest else 0
+            stats["refused"] += len(result.refused)
+            done.add(str(type_id))
+            cursor["done"] = sorted(done)
+            await checkpoint()
+            if result.refused and any("duckduckgo" in r for r in result.refused):
+                break  # the search engine itself said no: stop for today
+
+    return await _run_job(engine, "web_listings", body, stats)

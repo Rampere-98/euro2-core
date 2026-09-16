@@ -285,6 +285,44 @@ async def patch_user(
 # ------------------------------------------------------------------ logs, stats, version
 
 
+class SitePatch(BaseModel):
+    enabled: bool
+
+
+@router.get("/sites")
+async def list_sites(_: AdminUser, session: AsyncSession = SessionDep) -> list[dict[str, Any]]:
+    """Web shops and classified sites the open-web reader has met, most productive first."""
+    from euro2core.platform.web_market import sites
+
+    return [
+        {
+            "host": s.host,
+            "name": s.name,
+            "enabled": s.enabled,
+            "paused_until": s.paused_until,
+            "last_ok_at": s.last_ok_at,
+            "last_error": s.last_error,
+            "pages_read": s.pages_read,
+            "listings_found": s.listings_found,
+        }
+        for s in await sites(session)
+    ]
+
+
+@router.patch("/sites/{host}")
+async def patch_site(
+    host: str, body: SitePatch, _: AdminUser, session: AsyncSession = SessionDep
+) -> dict[str, Any]:
+    from euro2core.domain.models import MarketSite
+
+    site = await session.get(MarketSite, host)
+    if site is None:
+        raise HTTPException(status_code=404, detail="site not found")
+    site.enabled = body.enabled
+    await session.commit()
+    return {"host": site.host, "enabled": site.enabled}
+
+
 @router.get("/logs")
 async def get_logs(_: AdminUser, lines: int = Query(default=200, ge=10, le=500)) -> list[str]:
     return logbuffer.tail(lines)

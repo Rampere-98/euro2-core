@@ -45,6 +45,7 @@ SOURCES: tuple[tuple[str, str, int, SourceKind, str], ...] = (
     ("numista", "Numista", 50, SourceKind.CATALOG, "https://en.numista.com/"),
     ("ebay", "eBay", 10, SourceKind.MARKET, "https://www.ebay.com/"),
     ("euro2", "Euro2 collectors", 30, SourceKind.MARKET, "euro2://"),
+    ("web", "Tiendas y anuncios web", 8, SourceKind.MARKET, "https://"),
 )
 
 

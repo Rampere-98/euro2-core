@@ -185,3 +185,28 @@ def test_external_search_links_cover_the_main_marketplaces():
     assert ebay_es["url"].startswith("https://www.ebay.es/sch/i.html?_nkw=")
     assert "Alemania" in ebay_es["url"] or "Alemania" in ebay_es["url"].replace("+", " ")
     assert any(link["kind"] == "sold" for link in links)  # completed-sales views too
+
+
+def test_fair_band_uses_reliable_asks_when_nothing_has_sold_and_there_is_no_catalog_value():
+    # Monaco 2007: no recorded sale, no catalog value, model says 390-1950, two shops ask 3600.
+    # Shops are an upper bound, so the band sits just under the cheapest ask, not on the model.
+    from euro2core.pricing.market_intel import _stats
+
+    asks = _stats([Decimal("3600"), Decimal("3800")], 0)
+    assert fair_band(
+        realized=None, catalog=None, model=(Decimal("390"), Decimal("1950")), asking=asks
+    ) == (
+        Decimal("2520.00"),
+        Decimal("3600.00"),
+        "asking_only",
+    )
+    # one ask alone is not evidence; the model keeps the floor
+    single = _stats([Decimal("3600")], 0)
+    assert (
+        fair_band(
+            realized=None, catalog=None, model=(Decimal("390"), Decimal("1950")), asking=single
+        )[2]
+        == "mintage_model"
+    )
+    # a catalog value still beats asks
+    assert fair_band(realized=None, catalog=Decimal("3000"), asking=asks)[2] == "catalog"
