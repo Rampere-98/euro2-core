@@ -59,6 +59,7 @@ _T = {
         "anuncio y enlaces a las plazas. 5) «Seguir» en cualquier moneda para recibir chollos "
         "y movimientos.",
         "no_news": "No hay novedades publicadas todavía.",
+        "no_bulletin": "Todavía no hay boletín de hoy; se redacta cada mañana.",
         "news": "Últimas novedades:\n{items}",
         "login": "Para eso necesito que inicies sesión (Perfil).",
         "collection": "Tienes {n} piezas. Valor estimado {value} € (coste {cost} €, "
@@ -121,6 +122,7 @@ _T = {
         "4) Market → Sell → suggested price, listing text and marketplace links. 5) 'Follow' "
         "any coin to be told about deals and price moves.",
         "no_news": "No news published yet.",
+        "no_bulletin": "No bulletin yet today; it is written every morning.",
         "news": "Latest news:\n{items}",
         "login": "You need to sign in for that (Profile).",
         "collection": "You own {n} pieces. Estimated value €{value} (cost €{cost}, "
@@ -281,6 +283,18 @@ async def answer(
         return Reply(t["howto"], intent, lang)
     if intent == "glossary":
         return Reply(glossary_answer(message, lang) or t["glossary_none"], intent, lang)
+    if intent == "bulletin":
+        item = await session.scalar(
+            select(NewsItem)
+            .where(NewsItem.kind == "bulletin")
+            .order_by(NewsItem.published_at.desc())
+            .limit(1)
+        )
+        if item is None:
+            return Reply(t["no_bulletin"], intent, lang)
+        text = (item.title_es if lang == "es" else item.title_en) + "\n\n"
+        text += (item.body_es if lang == "es" else item.body_en) or ""
+        return Reply(text, intent, lang)
     if intent == "news":
         rows = (
             await session.scalars(select(NewsItem).order_by(NewsItem.published_at.desc()).limit(5))

@@ -42,6 +42,7 @@ def detect_language(text: str) -> str:
 # ----------------------------------------------------------------- intents
 
 INTENTS = (
+    "bulletin",
     "value",
     "rarity",
     "buy",
@@ -94,6 +95,11 @@ _RULES: tuple[tuple[str, str], ...] = (
         r"\b(donde (puedo )?compr|comprar|compro|buy|purchase|where can i get|where to find)\b",
     ),
     (
+        "bulletin",
+        r"\b(boletin|resumen del mercado|que ha pasado hoy|que paso hoy|hoy en el mercado"
+        r"|mercado hoy|market today|today.s market|daily bulletin|market summary)\b",
+    ),
+    (
         "news",
         r"\b(novedad|novedades|noticias?|nuevas monedas|ultimas"
         r"|news|latest|new coins|what.s new)\b",
@@ -115,6 +121,7 @@ _EXEMPLARS: dict[str, tuple[str, ...]] = {
     "glossary": ("qué significa este término numismático", "what does this term mean"),
     "howto": ("cómo hago para verificar una pieza", "how do I use the app to sell"),
     "news": ("qué novedades hay en el catálogo", "what is new"),
+    "bulletin": ("qué ha pasado hoy en el mercado", "what happened in the market today"),
     "collection": ("resumen de mi colección", "how is my collection doing"),
     "identify": ("identifica la moneda de esta foto", "what coin is this"),
     "help": ("qué puedes hacer", "what can you do", "ayuda"),

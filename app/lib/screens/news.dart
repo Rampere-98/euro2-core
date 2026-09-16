@@ -112,6 +112,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         child: Text('Sin noticias aún. Se publican solas cuando el catálogo cambia.')),
                 ], itemCount: _news.length, itemBuilder: (context, i) {
                   final n = _news[i];
+                  if (n['kind'] == 'bulletin') return _BulletinCard(item: n);
                   return ListTile(
                       leading: Icon(_icon(n['kind'])),
                       title: Text(n['title']),
@@ -128,3 +129,53 @@ class _NewsScreenState extends State<NewsScreen> {
 }
 
 const kReportStatus = {'pending': 'pendiente', 'validated': 'validado', 'rejected': 'rechazado'};
+
+/// The daily market bulletin, written by the assistant: headline, date and short sections.
+class _BulletinCard extends StatefulWidget {
+  const _BulletinCard({required this.item});
+  final Map<String, dynamic> item;
+
+  @override
+  State<_BulletinCard> createState() => _BulletinCardState();
+}
+
+class _BulletinCardState extends State<_BulletinCard> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final body = (widget.item['body'] ?? '') as String;
+    final parts = body.split('\n\n');
+    final lead = parts.isNotEmpty ? parts.first : '';
+    final sections = parts.skip(1).toList();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.newspaper, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(child: Text(widget.item['title'], style: text.titleLarge)),
+          ]),
+          const SizedBox(height: 8),
+          Text(lead, style: text.bodyMedium),
+          if (_open)
+            for (final s in sections) ...[
+              const SizedBox(height: 12),
+              Text(s.split('\n').first, style: text.titleSmall),
+              Text(s.split('\n').skip(1).join('\n'), style: text.bodyMedium),
+            ],
+          if (sections.isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => setState(() => _open = !_open),
+                child: Text(_open ? 'Cerrar' : 'Leer el boletín'),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+}

@@ -80,6 +80,10 @@ async def _news(engine: AsyncEngine, settings: Settings) -> SyncRun:
     return await jobs.run_publish_news(engine)
 
 
+async def _bulletin(engine: AsyncEngine, settings: Settings) -> SyncRun:
+    return await jobs.run_market_bulletin(engine)
+
+
 async def _web(engine: AsyncEngine, settings: Settings) -> SyncRun:
     creds = await _creds(engine, settings)
     return await jobs.run_web_listings(engine, user_agent=creds.user_agent)
@@ -135,6 +139,7 @@ JOB_SPECS: tuple[tuple[str, timedelta, JobFactory], ...] = (
     ("publish_news", timedelta(hours=1), _news),
     ("embed_types", timedelta(hours=24), _embed_types),
     ("web_listings", timedelta(hours=24), _web),
+    ("market_bulletin", timedelta(hours=24), _bulletin),
 )
 
 
@@ -153,6 +158,7 @@ JOB_LABELS_ES = {
     "publish_news": "Noticias",
     "embed_types": "Índice semántico (búsqueda por significado)",
     "web_listings": "Web abierta: tiendas y anuncios (sin clave)",
+    "market_bulletin": "Boletín diario del mercado",
 }
 JOB_NEEDS = {job: "numista" for job in NUMISTA_JOBS} | {job: "ebay" for job in EBAY_JOBS}
 

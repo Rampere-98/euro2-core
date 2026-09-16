@@ -698,3 +698,21 @@ async def run_web_listings(engine: AsyncEngine, *, user_agent: str) -> SyncRun:
                 break  # the search engine itself said no: stop for today
 
     return await _run_job(engine, "web_listings", body, stats)
+
+
+async def run_market_bulletin(engine: AsyncEngine) -> SyncRun:
+    """Write today's market bulletin (idempotent per day) and notify readers."""
+    from euro2core.platform.bulletin import write_bulletin
+
+    stats: dict[str, Any] = {"written": 0}
+
+    async def body(
+        sessions: Sessions, stats: dict[str, Any], cursor: dict[str, Any], checkpoint: Checkpoint
+    ) -> None:
+        async with sessions() as session:
+            item = await write_bulletin(session)
+            await session.commit()
+            stats["written"] = 1 if item is not None else 0
+            stats["title"] = item.title_es if item is not None else None
+
+    return await _run_job(engine, "market_bulletin", body, stats)
